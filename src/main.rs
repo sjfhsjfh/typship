@@ -1,0 +1,199 @@
+use anyhow::{bail, Context, Result};
+use clap::Command;
+use dialoguer::{Confirm, Input, MultiSelect};
+use model::{CATEGORIES, DISCIPLINES};
+use regex::Regex;
+use std::{
+    fs::{self, File},
+    io::Write,
+    str::FromStr,
+};
+use typst_syntax::package::{
+    PackageInfo, PackageManifest, PackageVersion, ToolInfo, UnknownFields,
+};
+use url::Url;
+
+pub mod model;
+
+#[cfg(test)]
+mod tests;
+
+fn main() {
+    const NAME: &str = env!("CARGO_PKG_NAME");
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+    let matches = Command::new(NAME)
+        .version(VERSION)
+        .about("A simple package manager for Typst")
+        .subcommand(Command::new("init").about("Initialize a new package"))
+        .get_matches();
+
+    let mut current_manifest: Option<PackageManifest> = None;
+    if let Ok(manifest) = fs::read_to_string("typst.toml") {
+        current_manifest = toml::from_str(&manifest).ok();
+    }
+
+    if let Some(_) = matches.subcommand_matches("init") {
+        if let Err(e) = init_package(&current_manifest) {
+            eprintln!("Error: {}", e);
+        }
+    }
+}
+
+fn init_package(current: &Option<PackageManifest>) -> Result<()> {
+    if current.is_some() {
+        if !Confirm::new()
+            .with_prompt("A package manifest already exists. Overwrite?")
+            .default(false)
+            .interact()?
+        {
+            return Ok(());
+        }
+    }
+
+    println!("Initializing a new package...");
+
+    let name_re = Regex::new(r"^[a-zA-Z_-][a-zA-Z0-9_-]*$").unwrap();
+    let name = Input::new()
+        .with_prompt("Enter the package name")
+        .validate_with(|input: &String| -> Result<()> {
+            if name_re.is_match(input) {
+                Ok(())
+            } else {
+                Err(anyhow::anyhow!("Invalid package name"))
+            }
+        });
+    let name =
+        if let Some(default_name) = fs::canonicalize(".")?.file_name().and_then(|s| s.to_str()) {
+            name.default(default_name.into())
+        } else {
+            name
+        };
+    let name: String = name.interact_text()?;
+
+    let author: String = Input::new()
+        .with_prompt("Enter the package author")
+        .default(whoami::username())
+        .interact_text()?;
+
+    let version: String = Input::new()
+        .with_prompt("Enter the package version")
+        .default("0.1.0".into())
+        .validate_with(|input: &String| -> Result<()> {
+            PackageVersion::from_str(input)
+                .map(|_| ())
+                .map_err(|msg| anyhow::anyhow!(msg))
+        })
+        .interact_text()?;
+    let version = PackageVersion::from_str(&version).unwrap();
+
+    let categories = MultiSelect::new()
+        .with_prompt("Choose the package category")
+        .items(&CATEGORIES)
+        .interact()
+        .unwrap()
+        .into_iter()
+        .map(|i| CATEGORIES[i].into())
+        .collect();
+
+    let disciplines = MultiSelect::new()
+        .with_prompt("Choose the package discipline")
+        .items(&DISCIPLINES)
+        .interact()
+        .unwrap()
+        .into_iter()
+        .map(|i| DISCIPLINES[i].into())
+        .collect();
+
+    let entrypoint: String = Input::new()
+        .with_prompt("Enter the package entrypoint")
+        .default("lib.typ".into())
+        .interact_text()?;
+
+    let description: String = Input::new()
+        .with_prompt("Enter the package description")
+        .allow_empty(true)
+        .interact_text()?;
+
+    let homepage: String = Input::new()
+        .with_prompt("Enter the package homepage URL")
+        .allow_empty(true)
+        .default("".into())
+        .validate_with(|input: &String| -> Result<()> {
+            if input.is_empty() {
+                Ok(())
+            } else {
+                let url = Url::parse(input)?;
+                if url.scheme() == "http" || url.scheme() == "https" {
+                    Ok(())
+                } else {
+                    bail!("Invalid URL scheme")
+                }
+            }
+        })
+        .interact_text()?;
+    let homepage = if homepage.is_empty() {
+        None
+    } else {
+        Some(homepage.into())
+    };
+
+    let repository: String = Input::new()
+        .with_prompt("Enter the package repository URL")
+        .allow_empty(true)
+        .default("".into())
+        .validate_with(|input: &String| -> Result<()> {
+            if input.is_empty() {
+                Ok(())
+            } else {
+                let url = Url::parse(input)?;
+                if url.scheme() == "http" || url.scheme() == "https" || url.scheme() == "git" {
+                    Ok(())
+                } else {
+                    bail!("Invalid URL scheme")
+                }
+            }
+        })
+        .interact_text()?;
+    let repository = if repository.is_empty() {
+        None
+    } else {
+        Some(repository.into())
+    };
+
+    let package_info = PackageInfo {
+        name: name.clone().into(),
+        authors: vec![author.into()],
+        version,
+        categories,
+        disciplines,
+        description: Some(description.into()),
+        entrypoint: entrypoint.into(),
+        homepage,
+        repository,
+        unknown_fields: UnknownFields::default(),
+        // TODO: Add the following fields
+        compiler: None,
+        exclude: vec![],
+        keywords: vec![],
+        license: None,
+    };
+
+    let manifest = PackageManifest {
+        package: package_info,
+        tool: ToolInfo::default(),
+        unknown_fields: UnknownFields::default(),
+        // TODO: Add the following fields
+        template: None,
+    };
+
+    let mut manifest_file =
+        File::create("typst.toml").context("Failed to create the package manifest file")?;
+    manifest_file
+        .write_all(toml::to_string_pretty(&manifest)?.as_bytes())
+        .context("Failed to write the package manifest file")?;
+
+    // TODO: generate other files: entrypoint, readme(ask) ...
+
+    Ok(())
+}
