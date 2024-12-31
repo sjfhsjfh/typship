@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Context, Ok, Result};
 use clap::Command;
 use dialoguer::{Confirm, Input, MultiSelect};
 use model::{CATEGORIES, DISCIPLINES};
@@ -6,10 +6,11 @@ use regex::Regex;
 use std::{
     fs::{self, File},
     io::Write,
+    path::Path,
     str::FromStr,
 };
 use typst_syntax::package::{
-    PackageInfo, PackageManifest, PackageVersion, ToolInfo, UnknownFields,
+    PackageInfo, PackageManifest, PackageVersion, ToolInfo, UnknownFields, VersionBound,
 };
 use url::Url;
 
@@ -29,7 +30,7 @@ fn main() {
         .get_matches();
 
     let mut current_manifest: Option<PackageManifest> = None;
-    if let Ok(manifest) = fs::read_to_string("typst.toml") {
+    if let std::result::Result::Ok(manifest) = fs::read_to_string("typst.toml") {
         current_manifest = toml::from_str(&manifest).ok();
     }
 
@@ -107,13 +108,30 @@ fn init_package(current: &Option<PackageManifest>) -> Result<()> {
 
     let entrypoint: String = Input::new()
         .with_prompt("Enter the package entrypoint")
-        .default("lib.typ".into())
+        .default(
+            Path::new("src")
+                .join(Path::new("lib.typ"))
+                .to_string_lossy()
+                .into(),
+        )
+        .validate_with(|input: &String| -> Result<()> {
+            if !input.ends_with(".typ") {
+                bail!("Entrypoint must end with '.typ'")
+            }
+            Ok(())
+        })
         .interact_text()?;
 
     let description: String = Input::new()
         .with_prompt("Enter the package description")
         .allow_empty(true)
         .interact_text()?;
+
+    let keywords: String = Input::new()
+        .with_prompt("Enter the package keywords(separated by comma)")
+        .allow_empty(true)
+        .interact_text()?;
+    let keywords = keywords.split(',').map(|s| s.trim().into()).collect();
 
     let homepage: String = Input::new()
         .with_prompt("Enter the package homepage URL")
@@ -161,6 +179,22 @@ fn init_package(current: &Option<PackageManifest>) -> Result<()> {
         Some(repository.into())
     };
 
+    let compiler: String = Input::new()
+        .with_prompt("Enter compiler version")
+        .allow_empty(true)
+        .default("".into())
+        .validate_with(|input: &String| -> Result<()> {
+            if input.is_empty() {
+                Ok(())
+            } else {
+                VersionBound::from_str(input)
+                    .map(|_| ())
+                    .map_err(|msg| anyhow::anyhow!(msg))
+            }
+        })
+        .interact_text()?;
+    let compiler = VersionBound::from_str(&compiler).ok();
+
     let package_info = PackageInfo {
         name: name.clone().into(),
         authors: vec![author.into()],
@@ -168,14 +202,14 @@ fn init_package(current: &Option<PackageManifest>) -> Result<()> {
         categories,
         disciplines,
         description: Some(description.into()),
+        keywords,
         entrypoint: entrypoint.into(),
         homepage,
         repository,
+        compiler,
         unknown_fields: UnknownFields::default(),
         // TODO: Add the following fields
-        compiler: None,
         exclude: vec![],
-        keywords: vec![],
         license: None,
     };
 
@@ -194,6 +228,12 @@ fn init_package(current: &Option<PackageManifest>) -> Result<()> {
         .context("Failed to write the package manifest file")?;
 
     // TODO: generate other files: entrypoint, readme(ask) ...
+
+    let entrypoint = Path::new(manifest.package.entrypoint.as_ref());
+    if let Some(parent) = entrypoint.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let _ = File::create(entrypoint)?;
 
     Ok(())
 }
