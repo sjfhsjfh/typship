@@ -1,9 +1,9 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
+use clap::Command;
 use dialoguer::{Confirm, Input, MultiSelect};
 use regex::Regex;
 use std::{
     fs::{self, File},
-    io::Write,
     path::Path,
     str::FromStr,
 };
@@ -12,7 +12,14 @@ use typst_syntax::package::{
 };
 use url::Url;
 
-use crate::model::{CATEGORIES, DISCIPLINES};
+use crate::{
+    model::{CATEGORIES, DISCIPLINES},
+    utils::write_manifest,
+};
+
+pub fn cmd() -> Command {
+    Command::new("init").about("Initialize a new package")
+}
 
 pub fn init(current: &Option<PackageManifest>) -> Result<()> {
     if current.is_some() {
@@ -194,11 +201,7 @@ pub fn init(current: &Option<PackageManifest>) -> Result<()> {
         template: None,
     };
 
-    let mut manifest_file =
-        File::create("typst.toml").context("Failed to create the package manifest file")?;
-    manifest_file
-        .write_all(toml::to_string_pretty(&manifest)?.as_bytes())
-        .context("Failed to write the package manifest file")?;
+    write_manifest(&manifest)?;
 
     // TODO: generate other files: entrypoint, readme(ask) ...
 

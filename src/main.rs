@@ -1,10 +1,10 @@
 use clap::Command;
-use commands::init::init;
 use std::fs;
 use typst_syntax::package::PackageManifest;
 
 mod commands;
-pub mod model;
+mod model;
+mod utils;
 
 #[cfg(test)]
 mod tests;
@@ -16,7 +16,8 @@ fn main() {
     let matches = Command::new(NAME)
         .version(VERSION)
         .about("A simple package manager for Typst")
-        .subcommand(Command::new("init").about("Initialize a new package"))
+        .subcommand(commands::init::cmd())
+        .subcommand(commands::exclude::cmd())
         .get_matches();
 
     let mut current_manifest: Option<PackageManifest> = None;
@@ -25,7 +26,18 @@ fn main() {
     }
 
     if let Some(_) = matches.subcommand_matches("init") {
-        if let Err(e) = init(&current_manifest) {
+        if let Err(e) = commands::init::init(&current_manifest) {
+            eprintln!("Error: {}", e);
+        }
+    }
+    if let Some(m) = matches.subcommand_matches("exclude") {
+        if let Err(e) = commands::exclude::exclude(
+            &mut current_manifest,
+            m.get_many::<String>("files")
+                .unwrap_or_default()
+                .map(|s| s.as_str())
+                .collect(),
+        ) {
             eprintln!("Error: {}", e);
         }
     }
