@@ -25,20 +25,17 @@ fn main() {
         current_manifest = toml::from_str(&manifest).ok();
     }
 
-    if let Some(_) = matches.subcommand_matches("init") {
-        if let Err(e) = commands::init::init(&current_manifest) {
-            eprintln!("Error: {}", e);
-        }
-    }
-    if let Some(m) = matches.subcommand_matches("exclude") {
-        if let Err(e) = commands::exclude::exclude(
+    if let Err(e) = match matches.subcommand() {
+        Some(("init", _)) => commands::init::init(&current_manifest),
+        Some(("exclude", m)) => commands::exclude::exclude(
             &mut current_manifest,
             m.get_many::<String>("files")
                 .unwrap_or_default()
                 .map(|s| s.as_str())
                 .collect(),
-        ) {
-            eprintln!("Error: {}", e);
-        }
+        ),
+        _ => Ok(()),
+    } {
+        eprintln!("Error: {}", e);
     }
 }
