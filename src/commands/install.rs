@@ -9,14 +9,19 @@ use crate::utils::{read_manifest, typst_local_dir};
 pub fn cmd() -> Command {
     Command::new("install")
         .about("Install the package to a certain namespace")
+        .long_about("Install the package to a certain namespace. Must be in the package directory.")
         .arg(
             Arg::new("target")
                 .required(true)
-                .help("The target namespace to install the package"),
+                .help("The target namespace to install the package")
+                .long_help(
+                    "The target namespace to install the package. Please avoid using `preview`.",
+                ),
         )
 }
 
 pub fn install(src_dir: &Path, target: &str) -> Result<()> {
+    // TODO: add warning for target == "preview"?
     let current = read_manifest(src_dir)?;
 
     let namespace_dir = typst_local_dir().join(target);
@@ -42,7 +47,7 @@ pub fn install(src_dir: &Path, target: &str) -> Result<()> {
         }
     }
 
-    // TODO: Process imports?
+    // TODO: Process imports? exclude?
 
     fn copy_all(src: &Path, dest: &Path) -> Result<()> {
         for entry in fs::read_dir(src)? {

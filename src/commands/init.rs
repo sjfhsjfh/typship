@@ -18,17 +18,16 @@ use crate::{
 };
 
 pub fn cmd() -> Command {
-    Command::new("init").about("Initialize a new package").arg(
-        Arg::new("name")
-            .required(false)
-            .help("The package name (optional)"),
-    )
+    Command::new("init")
+        .about("Initialize a new package in the current directory")
+        .arg(
+            Arg::new("name")
+                .required(false)
+                .help("The package name (optional)"),
+        )
 }
 
-pub fn init(
-    package_dir: &Path,
-    provided_name: Option<&str>,
-) -> Result<()> {
+pub fn init(package_dir: &Path, provided_name: Option<&str>) -> Result<()> {
     if read_manifest(package_dir).is_ok() {
         if !Confirm::new()
             .with_prompt("A package manifest already exists. Overwrite?")

@@ -7,12 +7,14 @@ use typst_syntax::package::PackageManifest;
 use crate::utils::{read_manifest, write_manifest};
 
 pub fn cmd() -> Command {
-    Command::new("exclude").about("Exclude files").arg(
-        Arg::new("files")
-            .help("Files to exclude")
-            .num_args(1..)
-            .required(true),
-    )
+    Command::new("exclude")
+        .about("Exclude files for the published bundle")
+        .arg(
+            Arg::new("files")
+                .help("Files to exclude")
+                .num_args(1..)
+                .required(true),
+        )
 }
 
 pub fn exclude(package_dir: &Path, files: Vec<&str>) -> Result<()> {

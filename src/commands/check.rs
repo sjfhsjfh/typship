@@ -6,7 +6,9 @@ use clap::Command;
 use crate::utils::read_manifest;
 
 pub fn cmd() -> Command {
-    Command::new("check").about("Initialize a new package")
+    Command::new("check")
+        .about("Check if the package is valid (WIP).")
+        .long_about("Check if the package is valid (WIP). Must be in the package directory.")
 }
 
 pub fn check(package_dir: &Path) -> Result<()> {

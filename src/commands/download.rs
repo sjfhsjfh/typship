@@ -3,20 +3,20 @@ use std::{fs, path::PathBuf, thread};
 use anyhow::{bail, Result};
 use clap::{Arg, Command};
 
-use crate::{
-    commands::install::install,
-    utils::temp_subdir,
-};
+use crate::{commands::install::install, utils::temp_subdir};
 
 pub fn cmd() -> Command {
     Command::new("download")
-        .about("Download package from git repository")
+        .about("Download a package from git repository to `@local` namespace")
+        .long_about("Download a package from git repository to `@local` namespace. Using the latest commit of the default branch for now.")
         .arg(
             Arg::new("repository")
                 .help("Git repository URL")
                 .required(true),
         )
 }
+
+// TODO: allow checkout tag, commit, branch
 
 pub fn download(repo: &str) -> Result<()> {
     let temp_dir = temp_subdir(repo);

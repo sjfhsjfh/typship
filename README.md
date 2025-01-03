@@ -2,6 +2,12 @@
 
 A tool for Typst package development and publishing.
 
+## Usage
+
+```sh
+typship help
+```
+
 ## TODO
 
 - [x] Package init
