@@ -17,10 +17,11 @@ pub fn cmd() -> Command {
         )
 }
 
-pub fn install(current: &Option<PackageManifest>, target: &str) -> Result<()> {
+pub fn install(parent: &Path, current: &Option<PackageManifest>, target: &str) -> Result<()> {
     let current = current
         .as_ref()
         .ok_or(anyhow!("No package manifest found"))?;
+
     let namespace_dir = typst_local_dir().join(target);
     let package_dir = namespace_dir.join(&current.package.name.as_str());
 
@@ -37,7 +38,10 @@ pub fn install(current: &Option<PackageManifest>, target: &str) -> Result<()> {
             return Ok(());
         } else {
             std::fs::remove_dir_all(&version_dir)?;
+            std::fs::create_dir_all(&version_dir)?;
         }
+    } else {
+        std::fs::create_dir_all(&version_dir)?;
     }
 
     // TODO: Process imports?
@@ -50,14 +54,14 @@ pub fn install(current: &Option<PackageManifest>, target: &str) -> Result<()> {
             if path.is_file() {
                 fs::copy(&path, &dest)?;
             } else if path.is_dir() {
-                fs::create_dir(&dest)?;
+                fs::create_dir_all(&dest)?;
                 copy_all(&path, &dest)?;
             }
         }
         Ok(())
     }
 
-    copy_all(".".as_ref(), &version_dir)?;
+    copy_all(parent, &version_dir)?;
 
     Ok(())
 }

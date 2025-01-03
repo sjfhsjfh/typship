@@ -22,20 +22,19 @@ fn main() {
         .subcommand(commands::exclude::cmd())
         .subcommand(commands::init::cmd());
 
-    #[cfg(feature = "git")]
     let matches = matches.subcommand(commands::download::cmd());
 
     let matches = matches.get_matches();
 
-    let mut current_manifest: Option<PackageManifest> = read_manifest().ok();
+    let mut current_manifest: Option<PackageManifest> = read_manifest(".".as_ref()).ok();
 
     if let Err(e) = match matches.subcommand() {
         Some(("check", _)) => commands::check::check(&current_manifest),
-        #[cfg(feature = "git")]
         Some(("download", m)) => {
             commands::download::download(m.get_one::<String>("repository").unwrap())
         }
         Some(("exclude", m)) => commands::exclude::exclude(
+            ".".as_ref(),
             &mut current_manifest,
             m.get_many::<String>("files")
                 .unwrap_or_default()
@@ -43,10 +42,12 @@ fn main() {
                 .collect(),
         ),
         Some(("init", m)) => commands::init::init(
+            ".".as_ref(),
             &current_manifest,
             m.get_one::<String>("name").map(|s| s.as_str()),
         ),
         Some(("install", m)) => commands::install::install(
+            ".".as_ref(),
             &current_manifest,
             m.get_one::<String>("target").unwrap().as_str(),
         ),

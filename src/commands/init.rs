@@ -25,7 +25,11 @@ pub fn cmd() -> Command {
     )
 }
 
-pub fn init(current: &Option<PackageManifest>, provided_name: Option<&str>) -> Result<()> {
+pub fn init(
+    parent: &Path,
+    current: &Option<PackageManifest>,
+    provided_name: Option<&str>,
+) -> Result<()> {
     if current.is_some() {
         if !Confirm::new()
             .with_prompt("A package manifest already exists. Overwrite?")
@@ -214,7 +218,7 @@ pub fn init(current: &Option<PackageManifest>, provided_name: Option<&str>) -> R
         template: None,
     };
 
-    write_manifest(&manifest)?;
+    write_manifest(parent, &manifest)?;
 
     // TODO: generate other files: entrypoint, readme(ask) ...
 
