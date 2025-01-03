@@ -11,6 +11,7 @@ pub fn check(current: &Option<PackageManifest>) -> Result<()> {
         .as_ref()
         .ok_or(anyhow!("Current package manifest not found"))?;
     // TODO: warn empty fields? check glob?
+    // TODO: move init validations here (or use a common function)
     println!("No issues found");
     Ok(())
 }

@@ -16,16 +16,25 @@ fn main() {
     let matches = Command::new(NAME)
         .version(VERSION)
         .about("A simple package manager for Typst")
-        .subcommand(commands::check::cmd())
-        .subcommand(commands::exclude::cmd())
-        .subcommand(commands::init::cmd())
         .subcommand_required(true)
-        .get_matches();
+        .subcommand(commands::check::cmd())
+        .subcommand(commands::install::cmd())
+        .subcommand(commands::exclude::cmd())
+        .subcommand(commands::init::cmd());
+
+    #[cfg(feature = "git")]
+    let matches = matches.subcommand(commands::download::cmd());
+
+    let matches = matches.get_matches();
 
     let mut current_manifest: Option<PackageManifest> = read_manifest().ok();
 
     if let Err(e) = match matches.subcommand() {
         Some(("check", _)) => commands::check::check(&current_manifest),
+        #[cfg(feature = "git")]
+        Some(("download", m)) => {
+            commands::download::download(m.get_one::<String>("repository").unwrap())
+        }
         Some(("exclude", m)) => commands::exclude::exclude(
             &mut current_manifest,
             m.get_many::<String>("files")
@@ -36,6 +45,10 @@ fn main() {
         Some(("init", m)) => commands::init::init(
             &current_manifest,
             m.get_one::<String>("name").map(|s| s.as_str()),
+        ),
+        Some(("install", m)) => commands::install::install(
+            &current_manifest,
+            m.get_one::<String>("target").unwrap().as_str(),
         ),
         _ => Ok(()),
     } {
