@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Result};
-use clap::Command;
+use clap::{Arg, Command};
 use dialoguer::{Confirm, Input, MultiSelect};
 use regex::Regex;
 use std::{
@@ -18,10 +18,14 @@ use crate::{
 };
 
 pub fn cmd() -> Command {
-    Command::new("init").about("Initialize a new package")
+    Command::new("init").about("Initialize a new package").arg(
+        Arg::new("name")
+            .required(false)
+            .help("The package name (optional)"),
+    )
 }
 
-pub fn init(current: &Option<PackageManifest>) -> Result<()> {
+pub fn init(current: &Option<PackageManifest>, provided_name: Option<&str>) -> Result<()> {
     if current.is_some() {
         if !Confirm::new()
             .with_prompt("A package manifest already exists. Overwrite?")
@@ -35,22 +39,31 @@ pub fn init(current: &Option<PackageManifest>) -> Result<()> {
     println!("Initializing a new package...");
 
     let name_re = Regex::new(r"^[a-zA-Z_-][a-zA-Z0-9_-]*$").unwrap();
-    let name = Input::new()
-        .with_prompt("Enter the package name")
-        .validate_with(|input: &String| -> Result<()> {
-            if name_re.is_match(input) {
-                Ok(())
-            } else {
-                Err(anyhow!("Invalid package name"))
-            }
-        });
-    let name =
-        if let Some(default_name) = fs::canonicalize(".")?.file_name().and_then(|s| s.to_str()) {
+    let name = if let Some(name) = provided_name {
+        if !name_re.is_match(name) {
+            bail!("Invalid package name")
+        }
+        println!("Package name: {}", name);
+        name.to_string()
+    } else {
+        let name = Input::new()
+            .with_prompt("Enter the package name")
+            .validate_with(|input: &String| -> Result<()> {
+                if name_re.is_match(input) {
+                    Ok(())
+                } else {
+                    Err(anyhow!("Invalid package name"))
+                }
+            });
+        let name = if let Some(default_name) =
+            fs::canonicalize(".")?.file_name().and_then(|s| s.to_str())
+        {
             name.default(default_name.into())
         } else {
             name
         };
-    let name: String = name.interact_text()?;
+        name.interact_text()?
+    };
 
     let author: String = Input::new()
         .with_prompt("Enter the package author")

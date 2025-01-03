@@ -33,7 +33,10 @@ fn main() {
                 .map(|s| s.as_str())
                 .collect(),
         ),
-        Some(("init", _)) => commands::init::init(&current_manifest),
+        Some(("init", m)) => commands::init::init(
+            &current_manifest,
+            m.get_one::<String>("name").map(|s| s.as_str()),
+        ),
         _ => Ok(()),
     } {
         eprintln!("Error: {}", e);
