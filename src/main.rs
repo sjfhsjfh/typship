@@ -1,6 +1,6 @@
 use clap::Command;
-use std::fs;
 use typst_syntax::package::PackageManifest;
+use utils::read_manifest;
 
 mod commands;
 mod model;
@@ -18,12 +18,10 @@ fn main() {
         .about("A simple package manager for Typst")
         .subcommand(commands::init::cmd())
         .subcommand(commands::exclude::cmd())
+        .subcommand_required(true)
         .get_matches();
 
-    let mut current_manifest: Option<PackageManifest> = None;
-    if let std::result::Result::Ok(manifest) = fs::read_to_string("typst.toml") {
-        current_manifest = toml::from_str(&manifest).ok();
-    }
+    let mut current_manifest: Option<PackageManifest> = read_manifest().ok();
 
     if let Err(e) = match matches.subcommand() {
         Some(("init", _)) => commands::init::init(&current_manifest),

@@ -18,6 +18,7 @@ pub fn exclude(current: &mut Option<PackageManifest>, files: Vec<&str>) -> Resul
         .as_mut()
         .ok_or(anyhow::anyhow!("Current package manifest not found"))?;
     for file in files {
+        // TODO: Validate glob?
         current.package.exclude.push(file.into());
     }
     current.package.exclude.dedup();
