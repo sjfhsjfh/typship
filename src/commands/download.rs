@@ -5,7 +5,7 @@ use clap::{Arg, Command};
 
 use crate::{
     commands::install::install,
-    utils::{read_manifest, temp_subdir},
+    utils::temp_subdir,
 };
 
 pub fn cmd() -> Command {
@@ -52,6 +52,6 @@ fn temp_jobs(temp_dir: PathBuf, repo: &str) -> Result<()> {
     }
 
     println!("Installing...");
-    install(&temp_dir, &read_manifest(&temp_dir).ok(), "local")?;
+    install(&temp_dir, "local")?;
     Ok(())
 }

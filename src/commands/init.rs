@@ -14,7 +14,7 @@ use url::Url;
 
 use crate::{
     model::{CATEGORIES, DISCIPLINES},
-    utils::write_manifest,
+    utils::{read_manifest, write_manifest},
 };
 
 pub fn cmd() -> Command {
@@ -26,11 +26,10 @@ pub fn cmd() -> Command {
 }
 
 pub fn init(
-    parent: &Path,
-    current: &Option<PackageManifest>,
+    package_dir: &Path,
     provided_name: Option<&str>,
 ) -> Result<()> {
-    if current.is_some() {
+    if read_manifest(package_dir).is_ok() {
         if !Confirm::new()
             .with_prompt("A package manifest already exists. Overwrite?")
             .default(false)
@@ -218,7 +217,7 @@ pub fn init(
         template: None,
     };
 
-    write_manifest(parent, &manifest)?;
+    write_manifest(package_dir, &manifest)?;
 
     // TODO: generate other files: entrypoint, readme(ask) ...
 

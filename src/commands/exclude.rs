@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::{Arg, Command};
 use typst_syntax::package::PackageManifest;
 
-use crate::utils::write_manifest;
+use crate::utils::{read_manifest, write_manifest};
 
 pub fn cmd() -> Command {
     Command::new("exclude").about("Exclude files").arg(
@@ -15,19 +15,13 @@ pub fn cmd() -> Command {
     )
 }
 
-pub fn exclude(
-    parent: &Path,
-    current: &mut Option<PackageManifest>,
-    files: Vec<&str>,
-) -> Result<()> {
-    let current: &mut PackageManifest = current
-        .as_mut()
-        .ok_or(anyhow!("Current package manifest not found"))?;
+pub fn exclude(package_dir: &Path, files: Vec<&str>) -> Result<()> {
+    let mut current: PackageManifest = read_manifest(package_dir)?;
     for file in files {
         // TODO: Validate glob?
         current.package.exclude.push(file.into());
     }
     current.package.exclude.dedup();
-    write_manifest(parent, &current)?;
+    write_manifest(package_dir, &current)?;
     Ok(())
 }

@@ -23,16 +23,16 @@ pub fn temp_subdir(id: &str) -> PathBuf {
     path
 }
 
-pub fn read_manifest(parent: &Path) -> Result<PackageManifest> {
-    let manifest = fs::read_to_string(parent.join("typst.toml"))
+pub fn read_manifest(package_dir: &Path) -> Result<PackageManifest> {
+    let manifest = fs::read_to_string(package_dir.join("typst.toml"))
         .context("Failed to read the package manifest file")?;
     let manifest = toml::from_str(&manifest).context("Failed to parse the package manifest")?;
     Ok(manifest)
 }
 
-pub fn write_manifest(parent: &Path, manifest: &PackageManifest) -> Result<()> {
+pub fn write_manifest(package_dir: &Path, manifest: &PackageManifest) -> Result<()> {
     let manifest = toml::to_string_pretty(manifest)?;
-    fs::write(parent.join("typst.toml"), manifest)
+    fs::write(package_dir.join("typst.toml"), manifest)
         .context("Failed to write the package manifest file")?;
     Ok(())
 }
