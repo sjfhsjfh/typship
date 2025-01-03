@@ -4,8 +4,8 @@ A tool for Typst package development and publishing.
 
 ## TODO
 
-- [ ] Package init
-- [ ] Package validation
+- [x] Package init
+- [x] Package validation
 - [ ] init with git
 - [ ] install to local
 - [ ] publish on Universe
