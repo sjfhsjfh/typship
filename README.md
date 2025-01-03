@@ -6,7 +6,9 @@ A tool for Typst package development and publishing.
 
 - [x] Package init
 - [x] Package validation
-- [ ] init with git
-- [ ] install to local
+- [ ] ~~init with git~~
+- [x] install to local
 - [ ] publish on Universe
-- [ ] exclude command
+- [x] exclude command
+
+- [ ] Better implementation investigation
