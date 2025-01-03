@@ -2,3 +2,7 @@
 
 # Mac OS
 .DS_Store
+
+# Testing
+typst.toml
+src/*.typ

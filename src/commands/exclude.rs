@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::{Arg, Command};
 use typst_syntax::package::PackageManifest;
 
@@ -16,7 +16,7 @@ pub fn cmd() -> Command {
 pub fn exclude(current: &mut Option<PackageManifest>, files: Vec<&str>) -> Result<()> {
     let current: &mut PackageManifest = current
         .as_mut()
-        .ok_or(anyhow::anyhow!("Current package manifest not found"))?;
+        .ok_or(anyhow!("Current package manifest not found"))?;
     for file in files {
         // TODO: Validate glob?
         current.package.exclude.push(file.into());

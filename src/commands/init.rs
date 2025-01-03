@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::Command;
 use dialoguer::{Confirm, Input, MultiSelect};
 use regex::Regex;
@@ -41,7 +41,7 @@ pub fn init(current: &Option<PackageManifest>) -> Result<()> {
             if name_re.is_match(input) {
                 Ok(())
             } else {
-                Err(anyhow::anyhow!("Invalid package name"))
+                Err(anyhow!("Invalid package name"))
             }
         });
     let name =
@@ -63,7 +63,7 @@ pub fn init(current: &Option<PackageManifest>) -> Result<()> {
         .validate_with(|input: &String| -> Result<()> {
             PackageVersion::from_str(input)
                 .map(|_| ())
-                .map_err(|msg| anyhow::anyhow!(msg))
+                .map_err(|msg| anyhow!(msg))
         })
         .interact_text()?;
     let version = PackageVersion::from_str(&version).unwrap();
@@ -169,7 +169,7 @@ pub fn init(current: &Option<PackageManifest>) -> Result<()> {
             } else {
                 VersionBound::from_str(input)
                     .map(|_| ())
-                    .map_err(|msg| anyhow::anyhow!(msg))
+                    .map_err(|msg| anyhow!(msg))
             }
         })
         .interact_text()?;
