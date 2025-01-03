@@ -22,17 +22,12 @@ pub fn download(repo: &str) -> Result<()> {
     let temp_dir = temp_subdir(repo);
     fs::create_dir_all(&temp_dir)?;
 
-    return match temp_jobs(temp_dir.clone(), repo) {
-        Ok(_) => {
-            fs::remove_dir_all(&temp_dir)?;
-            println!("Done");
-            Ok(())
-        }
-        Err(e) => {
-            fs::remove_dir_all(&temp_dir)?;
-            bail!(e);
-        }
-    };
+    let res = temp_jobs(temp_dir.clone(), repo);
+    fs::remove_dir_all(&temp_dir)?;
+    res?;
+
+    println!("Done");
+    Ok(())
 }
 
 fn temp_jobs(temp_dir: PathBuf, repo: &str) -> Result<()> {
