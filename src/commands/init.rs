@@ -8,7 +8,8 @@ use std::{
     str::FromStr,
 };
 use typst_syntax::package::{
-    PackageInfo, PackageManifest, PackageVersion, ToolInfo, UnknownFields, VersionBound,
+    PackageInfo, PackageManifest, PackageVersion, TemplateInfo, ToolInfo, UnknownFields,
+    VersionBound,
 };
 use url::Url;
 
@@ -25,6 +26,13 @@ pub fn cmd() -> Command {
                 .required(false)
                 .help("The package name (optional)"),
         )
+}
+
+fn entrypoint_validator(input: &String) -> std::result::Result<(), anyhow::Error> {
+    if !input.ends_with(".typ") {
+        bail!("Entrypoint must end with '.typ'")
+    }
+    Ok(())
 }
 
 pub fn init(package_dir: &Path, provided_name: Option<&str>) -> Result<()> {
@@ -109,12 +117,7 @@ pub fn init(package_dir: &Path, provided_name: Option<&str>) -> Result<()> {
                 .to_string_lossy()
                 .into(),
         )
-        .validate_with(|input: &String| -> Result<()> {
-            if !input.ends_with(".typ") {
-                bail!("Entrypoint must end with '.typ'")
-            }
-            Ok(())
-        })
+        .validate_with(entrypoint_validator)
         .interact_text()?;
 
     let description: String = Input::new()
@@ -208,12 +211,51 @@ pub fn init(package_dir: &Path, provided_name: Option<&str>) -> Result<()> {
         license: None,
     };
 
+    let has_template = Confirm::new()
+        .with_prompt("Does the package have a template?")
+        .default(false)
+        .interact()?;
+
+    let template = if has_template {
+        let path: String = Input::new()
+            .with_prompt("Enter the template project path")
+            .default("template".into())
+            .allow_empty(false)
+            .interact_text()?;
+
+        let entrypoint: String = Input::new()
+            .with_prompt("Enter the template entrypoint")
+            .default(format!("{}/main.typ", path))
+            .validate_with(entrypoint_validator)
+            .interact_text()?;
+
+        let thumbnail: String = Input::new()
+            .with_prompt("Enter the template thumbnail path(optional)")
+            .allow_empty(true)
+            .interact_text()?;
+
+        let path = path.into();
+        let entrypoint = entrypoint.into();
+        let thumbnail = if thumbnail.is_empty() {
+            None
+        } else {
+            Some(thumbnail.into())
+        };
+        Some(TemplateInfo {
+            path,
+            entrypoint,
+            thumbnail,
+            unknown_fields: UnknownFields::default(),
+        })
+    } else {
+        None
+    };
+
     let manifest = PackageManifest {
         package: package_info,
         tool: ToolInfo::default(),
         unknown_fields: UnknownFields::default(),
-        // TODO: Add the following fields
-        template: None,
+        template,
     };
 
     write_manifest(package_dir, &manifest)?;
