@@ -1,4 +1,8 @@
+use std::env;
+use std::io::Write;
+
 use clap::Command;
+use log::error;
 
 mod commands;
 mod model;
@@ -10,6 +14,19 @@ mod tests;
 fn main() {
     const NAME: &str = env!("CARGO_PKG_NAME");
     const VERSION: &str = env!("CARGO_PKG_VERSION");
+    env_logger::Builder::from_env(
+        env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info"),
+    )
+    .format(|buf, record| {
+        let level_style = buf.default_level_style(record.level());
+        writeln!(
+            buf,
+            "{level_style}{}{level_style:#} {}",
+            record.level(),
+            record.args()
+        )
+    })
+    .init();
 
     let matches = Command::new(NAME)
         .version(VERSION)
@@ -48,6 +65,6 @@ fn main() {
         ),
         _ => Ok(()),
     } {
-        eprintln!("Error: {}", e);
+        error!("Error: {}", e);
     }
 }

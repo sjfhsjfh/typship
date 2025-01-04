@@ -1,6 +1,7 @@
 use anyhow::{anyhow, bail, Result};
 use clap::{Arg, Command};
 use dialoguer::{Confirm, Input, MultiSelect};
+use log::info;
 use regex::Regex;
 use std::{
     fs::{self, File},
@@ -46,7 +47,7 @@ pub fn init(package_dir: &Path, provided_name: Option<&str>) -> Result<()> {
         }
     }
 
-    println!("Initializing a new package...");
+    info!("Initializing a new package...");
 
     let name_re = Regex::new(r"^[a-zA-Z_-][a-zA-Z0-9_-]*$").unwrap();
     let name = if let Some(name) = provided_name {

@@ -2,6 +2,7 @@ use std::{fs, path::PathBuf, thread};
 
 use anyhow::{bail, Result};
 use clap::{Arg, Command};
+use log::info;
 
 use crate::{commands::install::install, utils::temp_subdir};
 
@@ -26,21 +27,21 @@ pub fn download(repo: &str) -> Result<()> {
     fs::remove_dir_all(&temp_dir)?;
     res?;
 
-    println!("Done");
+    info!("Done");
     Ok(())
 }
 
 fn temp_jobs(temp_dir: PathBuf, repo: &str) -> Result<()> {
+    info!("Cloning the repository...");
     fs::remove_dir_all(&temp_dir)?;
     fs::create_dir_all(&temp_dir)?;
-    println!("Cloning repository to {:?}", temp_dir);
     let repo_clone = repo.to_string();
     let temp_dir_clone = temp_dir.clone();
     let handle = thread::spawn(move || {
         let status = std::process::Command::new("git")
             .arg("clone")
             .arg(repo_clone)
-            .arg(".")
+            .arg(&temp_dir_clone)
             .current_dir(&temp_dir_clone)
             .status()
             .expect("Failed to run git clone");
@@ -51,7 +52,7 @@ fn temp_jobs(temp_dir: PathBuf, repo: &str) -> Result<()> {
         bail!("Failed to join the thread");
     }
 
-    println!("Installing...");
+    info!("Installing...");
     install(&temp_dir, "local")?;
     Ok(())
 }
