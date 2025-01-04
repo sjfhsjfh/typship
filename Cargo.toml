@@ -5,7 +5,6 @@ description = "A cli for typst packages."
 repository = "https://github.com/sjfhsjfh/typship"
 readme = "README.md"
 edition = "2021"
-license = "MIT"
 license-file = "LICENSE"
 
 [features]
