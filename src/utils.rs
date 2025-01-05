@@ -7,6 +7,32 @@ use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use typst_syntax::package::PackageManifest;
 
+use crate::model::Config;
+
+pub fn config_dir() -> PathBuf {
+    dirs::config_dir()
+        .expect("Failed to get the config directory")
+        .join(env!("CARGO_PKG_NAME"))
+}
+
+pub fn load_config() -> Result<Config> {
+    let path = config_dir().join("config.toml");
+    let config = fs::read_to_string(&path).context("Failed to read the configuration file")?;
+    let config = toml::from_str(&config).context("Failed to parse the configuration file")?;
+    Ok(config)
+}
+
+pub fn save_config(config: &Config) -> Result<()> {
+    if !config_dir().exists() {
+        fs::create_dir_all(&config_dir())
+            .context("Failed to create the configuration directory")?;
+    }
+    let path = config_dir().join("config.toml");
+    let config = toml::to_string_pretty(config)?;
+    fs::write(&path, config).context("Failed to write the configuration file")?;
+    Ok(())
+}
+
 pub fn typst_local_dir() -> PathBuf {
     dirs::data_dir()
         .expect("Failed to get the data directory")

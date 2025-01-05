@@ -2,7 +2,8 @@ use std::env;
 use std::io::Write;
 
 use clap::Command;
-use log::error;
+use log::{error, info};
+use utils::{load_config, save_config};
 
 mod commands;
 mod model;
@@ -30,15 +31,21 @@ fn main() {
         .about("A simple package manager for Typst")
         .subcommand_required(true)
         .subcommand(commands::check::cmd())
-        .subcommand(commands::install::cmd())
+        .subcommand(commands::download::cmd())
         .subcommand(commands::exclude::cmd())
-        .subcommand(commands::init::cmd());
-
-    let matches = matches.subcommand(commands::download::cmd());
+        .subcommand(commands::init::cmd())
+        .subcommand(commands::install::cmd())
+        .subcommand(commands::login::cmd());
 
     let matches = matches.get_matches();
 
     let current_dir = std::env::current_dir().expect("Failed to get the current directory");
+    let mut config = load_config().unwrap_or({
+        info!("Creating a new configuration file...");
+        let config = model::Config::default();
+        save_config(&config).expect("Failed to save the configuration file");
+        config
+    });
 
     if let Err(e) = match matches.subcommand() {
         Some(("check", _)) => commands::check::check(&current_dir),
@@ -59,6 +66,10 @@ fn main() {
         Some(("install", m)) => commands::install::install(
             &current_dir,
             m.get_one::<String>("target").unwrap().as_str(),
+        ),
+        Some(("login", m)) => commands::login::login(
+            &mut config,
+            m.get_one::<String>("registry").unwrap().as_str(),
         ),
         _ => Ok(()),
     } {
