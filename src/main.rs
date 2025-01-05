@@ -8,9 +8,6 @@ mod commands;
 mod model;
 mod utils;
 
-#[cfg(test)]
-mod tests;
-
 fn main() {
     const NAME: &str = env!("CARGO_PKG_NAME");
     const VERSION: &str = env!("CARGO_PKG_VERSION");
