@@ -14,6 +14,7 @@ typship help
 - [x] Package validation
 - [ ] ~~init with git~~
 - [x] install to local
+- [ ] package download got checkout
 - [ ] publish on Universe
 - [x] exclude command
 
