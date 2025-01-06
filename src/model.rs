@@ -66,6 +66,8 @@ pub struct Config {
     pub tokens: RegistryTokens,
 }
 
+
+// TODO: use a enum or sth to manage
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct RegistryTokens {
     pub universe: Option<String>,

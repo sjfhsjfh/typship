@@ -4,7 +4,7 @@ use log::info;
 
 use crate::{
     model::Config,
-    utils::{config_dir, save_config},
+    utils::{config_file, save_config},
 };
 
 pub fn cmd() -> Command {
@@ -43,7 +43,7 @@ pub fn login(config: &mut Config, registry: &str) -> Result<()> {
             save_config(config)?;
             info!(
                 "Your token has been saved to {}",
-                config_dir().join("config.toml").to_string_lossy()
+                config_file().to_string_lossy()
             );
             Ok(())
         }

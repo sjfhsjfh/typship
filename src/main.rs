@@ -9,7 +9,8 @@ mod commands;
 mod model;
 mod utils;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     const NAME: &str = env!("CARGO_PKG_NAME");
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     env_logger::Builder::from_env(
@@ -35,12 +36,12 @@ fn main() {
         .subcommand(commands::exclude::cmd())
         .subcommand(commands::init::cmd())
         .subcommand(commands::install::cmd())
-        .subcommand(commands::login::cmd());
-
-    let matches = matches.get_matches();
+        .subcommand(commands::login::cmd())
+        .subcommand(commands::publish::cmd())
+        .get_matches();
 
     let current_dir = std::env::current_dir().expect("Failed to get the current directory");
-    let mut config = load_config().unwrap_or({
+    let mut config = load_config().unwrap_or_else(|_| {
         info!("Creating a new configuration file...");
         let config = model::Config::default();
         save_config(&config).expect("Failed to save the configuration file");
@@ -71,6 +72,14 @@ fn main() {
             &mut config,
             m.get_one::<String>("registry").unwrap().as_str(),
         ),
+        Some(("publish", m)) => {
+            commands::publish::publish(
+                &current_dir,
+                &config,
+                m.get_one::<String>("registry").unwrap().as_str(),
+            )
+            .await
+        }
         _ => Ok(()),
     } {
         error!("Error: {}", e);

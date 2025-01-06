@@ -15,9 +15,12 @@ pub fn config_dir() -> PathBuf {
         .join(env!("CARGO_PKG_NAME"))
 }
 
+pub fn config_file() -> PathBuf {
+    config_dir().join("config.toml")
+}
+
 pub fn load_config() -> Result<Config> {
-    let path = config_dir().join("config.toml");
-    let config = fs::read_to_string(&path).context("Failed to read the configuration file")?;
+    let config = fs::read_to_string(config_file()).context("Failed to read the configuration file")?;
     let config = toml::from_str(&config).context("Failed to parse the configuration file")?;
     Ok(config)
 }
@@ -27,9 +30,8 @@ pub fn save_config(config: &Config) -> Result<()> {
         fs::create_dir_all(&config_dir())
             .context("Failed to create the configuration directory")?;
     }
-    let path = config_dir().join("config.toml");
     let config = toml::to_string_pretty(config)?;
-    fs::write(&path, config).context("Failed to write the configuration file")?;
+    fs::write(config_file(), config).context("Failed to write the configuration file")?;
     Ok(())
 }
 
