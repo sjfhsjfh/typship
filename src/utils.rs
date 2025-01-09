@@ -4,10 +4,11 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use log::info;
 use sha2::{Digest, Sha256};
 use typst_syntax::package::PackageManifest;
 
-use crate::model::Config;
+use crate::config::Config;
 
 pub fn config_dir() -> PathBuf {
     dirs::config_dir()
@@ -19,8 +20,16 @@ pub fn config_file() -> PathBuf {
     config_dir().join("config.toml")
 }
 
+/// Should always return a valid config
 pub fn load_config() -> Result<Config> {
-    let config = fs::read_to_string(config_file()).context("Failed to read the configuration file")?;
+    if !config_file().exists() {
+        info!("Creating a new configuration file...");
+        let cfg = Config::default();
+        save_config(&cfg).expect("Failed to save the configuration file");
+        return Ok(cfg);
+    }
+    let config =
+        fs::read_to_string(config_file()).context("Failed to read the configuration file")?;
     let config = toml::from_str(&config).context("Failed to parse the configuration file")?;
     Ok(config)
 }

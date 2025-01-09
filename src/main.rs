@@ -2,11 +2,12 @@ use std::env;
 use std::io::Write;
 
 use clap::Command;
-use log::{error, info};
-use utils::{load_config, save_config};
+use log::error;
 
 mod commands;
+mod config;
 mod model;
+mod regs;
 mod utils;
 
 #[tokio::main]
@@ -41,12 +42,6 @@ async fn main() {
         .get_matches();
 
     let current_dir = std::env::current_dir().expect("Failed to get the current directory");
-    let mut config = load_config().unwrap_or_else(|_| {
-        info!("Creating a new configuration file...");
-        let config = model::Config::default();
-        save_config(&config).expect("Failed to save the configuration file");
-        config
-    });
 
     if let Err(e) = match matches.subcommand() {
         Some(("check", _)) => commands::check::check(&current_dir),
@@ -68,20 +63,18 @@ async fn main() {
             &current_dir,
             m.get_one::<String>("target").unwrap().as_str(),
         ),
-        Some(("login", m)) => commands::login::login(
-            &mut config,
-            m.get_one::<String>("registry").unwrap().as_str(),
-        ),
+        Some(("login", m)) => {
+            commands::login::login(m.get_one::<String>("registry").unwrap().as_str())
+        }
         Some(("publish", m)) => {
             commands::publish::publish(
                 &current_dir,
-                &config,
                 m.get_one::<String>("registry").unwrap().as_str(),
             )
             .await
         }
         _ => Ok(()),
     } {
-        error!("Error: {}", e);
+        error!("{:?}", e);
     }
 }

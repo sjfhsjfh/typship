@@ -1,11 +1,10 @@
 use std::path::Path;
 
+use crate::regs::universe::{self};
 use anyhow::Result;
 use clap::{Arg, Command};
-use octocrab::{initialise, Octocrab};
-use secrecy::SecretString;
 
-use crate::{model::Config, utils::read_manifest};
+use crate::utils::read_manifest;
 
 pub fn cmd() -> Command {
     Command::new("publish")
@@ -21,22 +20,12 @@ pub fn cmd() -> Command {
         )
 }
 
-pub async fn publish(package_dir: &Path, config: &Config, registry: &str) -> Result<()> {
-    match registry {
-        "universe" => {
-            let current = read_manifest(package_dir)?;
-            // TODO: better secret management
-            let token = config.tokens.universe.clone().ok_or(anyhow::anyhow!(
-                "You need to set up the token first. Run `typship login universe`."
-            ))?;
-            let token = SecretString::from(token);
-            let client = initialise(Octocrab::builder().personal_token(token).build()?);
-            // TODO: check if exist in package repo(name, registry), check pr
-            unimplemented!();
-            Ok(())
-        }
+pub async fn publish(package_dir: &Path, registry: &str) -> Result<()> {
+    let current = read_manifest(package_dir)?;
+    Ok(match registry {
+        "universe" => universe::publish(&current, package_dir).await?,
         _ => {
             anyhow::bail!("Unsupported registry: {}", registry);
         }
-    }
+    })
 }

@@ -49,6 +49,7 @@ pub fn install(src_dir: &Path, target: &str) -> Result<()> {
 
     // TODO: Process imports? exclude?
 
+    // TODO: replace this with walkdir
     fn copy_all(src: &Path, dest: &Path) -> Result<()> {
         for entry in fs::read_dir(src)? {
             let entry = entry?;

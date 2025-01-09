@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 pub const CATEGORIES: [&str; 19] = [
     "components",
     "visualization",
@@ -60,15 +58,3 @@ pub const DISCIPLINES: [&str; 36] = [
     "theology",
     "transportation",
 ];
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct Config {
-    pub tokens: RegistryTokens,
-}
-
-
-// TODO: use a enum or sth to manage
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct RegistryTokens {
-    pub universe: Option<String>,
-}

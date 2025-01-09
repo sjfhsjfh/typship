@@ -1,11 +1,7 @@
 use anyhow::Result;
 use clap::{Arg, Command};
-use log::info;
 
-use crate::{
-    model::Config,
-    utils::{config_file, save_config},
-};
+use crate::regs::universe;
 
 pub fn cmd() -> Command {
     Command::new("login")
@@ -21,32 +17,9 @@ pub fn cmd() -> Command {
         )
 }
 
-pub fn login(config: &mut Config, registry: &str) -> Result<()> {
+pub fn login(registry: &str) -> Result<()> {
     match registry {
-        "universe" => {
-            let overwrite = if config.tokens.universe.is_some() {
-                info!("Already logged in to the Universe registry");
-                dialoguer::Confirm::new()
-                    .with_prompt("Do you want to overwrite the existing token?")
-                    .default(false)
-                    .interact()?
-            } else {
-                true
-            };
-            if !overwrite {
-                return Ok(());
-            }
-            let token = dialoguer::Password::new()
-                .with_prompt("Enter your GitHub token")
-                .interact()?;
-            config.tokens.universe = Some(token);
-            save_config(config)?;
-            info!(
-                "Your token has been saved to {}",
-                config_file().to_string_lossy()
-            );
-            Ok(())
-        }
+        "universe" => universe::login(),
         _ => {
             anyhow::bail!("Unsupported registry: {}", registry);
         }
