@@ -43,7 +43,7 @@ pub fn init(package_dir: &Path, provided_name: Option<&str>) -> Result<()> {
             .default(false)
             .interact()?
         {
-            return Ok(());
+            bail!("Aborted");
         }
     }
 
