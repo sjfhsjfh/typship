@@ -26,5 +26,6 @@ typship help
 - [x] install to local
 - [x] publish on Universe
 - [x] exclude command
+- [ ] i18n
 
 - [ ] Better implementation investigation
