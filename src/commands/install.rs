@@ -1,10 +1,11 @@
 use std::{fs, path::Path};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::{Arg, Command};
 use dialoguer::Confirm;
+use log::warn;
 
-use crate::utils::{read_manifest, typst_local_dir};
+use crate::utils::{read_manifest, typst_local_dir, walker_default};
 
 pub fn cmd() -> Command {
     Command::new("install")
@@ -21,7 +22,17 @@ pub fn cmd() -> Command {
 }
 
 pub fn install(src_dir: &Path, target: &str) -> Result<()> {
-    // TODO: add warning for target == "preview"?
+    if target == "preview" {
+        warn!("Installing directly to `preview` is STRONGLY discouraged.");
+        if !Confirm::new()
+            .with_prompt("Are you sure you want to install directly to `preview`?")
+            .default(false)
+            .interact()?
+        {
+            bail!("Aborted");
+        }
+    }
+
     let current = read_manifest(src_dir)?;
 
     let namespace_dir = typst_local_dir().join(target);
@@ -40,7 +51,7 @@ pub fn install(src_dir: &Path, target: &str) -> Result<()> {
             .default(false)
             .interact()?
         {
-            return Ok(());
+            bail!("Aborted")
         } else {
             std::fs::remove_dir_all(&version_dir)?;
             std::fs::create_dir_all(&version_dir)?;
@@ -49,22 +60,17 @@ pub fn install(src_dir: &Path, target: &str) -> Result<()> {
 
     // TODO: Process imports? exclude?
 
-    fn copy_all(src: &Path, dest: &Path) -> Result<()> {
-        for entry in fs::read_dir(src)? {
-            let entry = entry?;
+    for entry in walker_default(src_dir) {
+        if let Ok(entry) = entry {
             let path = entry.path();
-            let dest = dest.join(path.file_name().unwrap());
+            let dest = version_dir.join(path.strip_prefix(src_dir).unwrap());
             if path.is_file() {
                 fs::copy(&path, &dest)?;
             } else if path.is_dir() {
                 fs::create_dir_all(&dest)?;
-                copy_all(&path, &dest)?;
             }
         }
-        Ok(())
     }
-
-    copy_all(src_dir, &version_dir)?;
 
     Ok(())
 }
