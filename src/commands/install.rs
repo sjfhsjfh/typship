@@ -61,8 +61,6 @@ pub fn install(src_dir: &Path, target: &str) -> Result<()> {
         }
     }
 
-    // TODO: Process imports? exclude?
-
     let mut excludes = vec![];
     for exclude in &current.package.exclude {
         let pattern = Pattern::new(&exclude)?;
