@@ -2,7 +2,7 @@ use std::{fs, path::PathBuf};
 
 use anyhow::{bail, Result};
 use clap::{Arg, Command};
-use log::{debug, info};
+use log::info;
 
 use crate::{commands::install::install, utils::temp_subdir};
 
