@@ -1,8 +1,8 @@
-use std::{fs, path::PathBuf, thread};
+use std::{fs, path::PathBuf};
 
 use anyhow::{bail, Result};
 use clap::{Arg, Command};
-use log::info;
+use log::{debug, info};
 
 use crate::{commands::install::install, utils::temp_subdir};
 
@@ -15,15 +15,23 @@ pub fn cmd() -> Command {
                 .help("Git repository URL")
                 .required(true),
         )
+        .arg(
+            Arg::new("checkout")
+                .help("Checkout to a specific tag, commit, or branch")
+                .short('c')
+                .long("checkout")
+                .required(false)
+                .value_name("REF")
+        )
 }
 
 // TODO: allow checkout tag, commit, branch
 
-pub fn download(repo: &str) -> Result<()> {
+pub fn download(repo: &str, checkout: Option<&str>) -> Result<()> {
     let temp_dir = temp_subdir(repo);
     fs::create_dir_all(&temp_dir)?;
 
-    let res = temp_jobs(temp_dir.clone(), repo);
+    let res = temp_jobs(temp_dir.clone(), repo, checkout);
     fs::remove_dir_all(&temp_dir)?;
     res?;
 
@@ -31,25 +39,33 @@ pub fn download(repo: &str) -> Result<()> {
     Ok(())
 }
 
-fn temp_jobs(temp_dir: PathBuf, repo: &str) -> Result<()> {
+fn temp_jobs(temp_dir: PathBuf, repo: &str, checkout: Option<&str>) -> Result<()> {
     info!("Cloning the repository...");
     fs::remove_dir_all(&temp_dir)?;
     fs::create_dir_all(&temp_dir)?;
-    let repo_clone = repo.to_string();
-    let temp_dir_clone = temp_dir.clone();
-    let handle = thread::spawn(move || {
+    let status = std::process::Command::new("git")
+        .arg("clone")
+        // .arg("--depth=1")
+        .arg(repo)
+        .arg(&temp_dir)
+        .current_dir(&temp_dir)
+        .status()
+        .expect("Failed to run git clone");
+    if !status.success() {
+        bail!("Failed to clone");
+    }
+
+    if let Some(checkout) = checkout {
+        info!("Checking out to {}...", checkout);
         let status = std::process::Command::new("git")
-            .arg("clone")
-            .arg(repo_clone)
-            .arg(&temp_dir_clone)
-            .current_dir(&temp_dir_clone)
+            .arg("checkout")
+            .arg(checkout)
+            .current_dir(&temp_dir)
             .status()
-            .expect("Failed to run git clone");
-        status
-    });
-    if !handle.join().is_ok() {
-        fs::remove_dir_all(&temp_dir)?;
-        bail!("Failed to join the thread");
+            .expect("Failed to run git checkout");
+        if !status.success() {
+            bail!("Failed to checkout");
+        }
     }
 
     info!("Installing...");
