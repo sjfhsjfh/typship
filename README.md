@@ -2,6 +2,12 @@
 
 A tool for Typst package development and publishing.
 
+## Installation
+
+```sh
+cargo install typship
+```
+
 ## Notice
 
 To use `publish universe`, you will need to generate a token (fine-grained) with the following permissions to your fork of the packages repository:
