@@ -45,9 +45,10 @@ async fn main() {
 
     if let Err(e) = match matches.subcommand() {
         Some(("check", _)) => commands::check::check(&current_dir),
-        Some(("download", m)) => {
-            commands::download::download(m.get_one::<String>("repository").unwrap())
-        }
+        Some(("download", m)) => commands::download::download(
+            m.get_one::<String>("repository").unwrap(),
+            m.get_one::<String>("checkout").map(|s| s.as_str()),
+        ),
         Some(("exclude", m)) => commands::exclude::exclude(
             &current_dir,
             m.get_many::<String>("files")

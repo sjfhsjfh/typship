@@ -33,5 +33,6 @@ typship help
 - [ ] package download got checkout
 - [x] publish on Universe
 - [x] exclude command
+- [ ] i18n
 
 - [ ] Better implementation investigation
