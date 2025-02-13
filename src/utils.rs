@@ -45,6 +45,7 @@ pub fn save_config(config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Data dir, not cache dir
 pub fn typst_local_dir() -> PathBuf {
     dirs::data_dir()
         .expect("Failed to get the data directory")

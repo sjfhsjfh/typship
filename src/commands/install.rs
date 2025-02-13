@@ -22,21 +22,44 @@ pub fn cmd() -> Command {
         )
 }
 
+/// target should not contain `@` prefix
 pub fn install(src_dir: &Path, target: &str) -> Result<()> {
-    if target == "preview" {
-        warn!("Installing directly to `preview` is STRONGLY discouraged.");
+    let mut target = target.to_string();
+    while target.starts_with('@') {
         if !Confirm::new()
-            .with_prompt("Are you sure you want to install directly to `preview`?")
-            .default(false)
+            .with_prompt(format!(
+                "Namespace parameter should not contain `@` prefix. Do you mean `{}`?",
+                target[1..].to_string()
+            ))
+            .default(true)
             .interact()?
         {
+            target = target[1..].to_string();
+        } else {
             bail!("Aborted");
         }
     }
 
     let current = read_manifest(src_dir)?;
 
-    let namespace_dir = typst_local_dir().join(target);
+    match target.as_str() {
+        "preview" => {
+            // TODO: recommend `typship dev`(symlink) after finishing the dev command
+            warn!(
+                "Installing directly to `preview` is discouraged, since it might break the versioning."
+            );
+            if !Confirm::new()
+                .with_prompt("Are you sure you want to install directly to `preview`?")
+                .default(false)
+                .interact()?
+            {
+                bail!("Aborted");
+            }
+        }
+        _ => {}
+    }
+
+    let namespace_dir = typst_local_dir().join(&target);
     let package_dir = namespace_dir.join(&current.package.name.as_str());
 
     let version_dir = package_dir.join(&current.package.version.to_string());
