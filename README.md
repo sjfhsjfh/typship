@@ -34,5 +34,6 @@ typship help
 - [x] publish on Universe
 - [x] exclude command
 - [ ] i18n
+- [ ] typship dev(create symlink to the developing version? auto check?)
 
 - [ ] Better implementation investigation

@@ -48,6 +48,7 @@ async fn main() {
         Some(("download", m)) => commands::download::download(
             m.get_one::<String>("repository").unwrap(),
             m.get_one::<String>("checkout").map(|s| s.as_str()),
+            m.get_one::<String>("namespace").unwrap(),
         ),
         Some(("exclude", m)) => commands::exclude::exclude(
             &current_dir,
