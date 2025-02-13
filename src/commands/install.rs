@@ -8,8 +8,6 @@ use log::warn;
 
 use crate::utils::{read_manifest, typst_local_dir, walker_default};
 
-use super::exclude;
-
 pub fn cmd() -> Command {
     Command::new("install")
         .about("Install the current package to a certain namespace")
