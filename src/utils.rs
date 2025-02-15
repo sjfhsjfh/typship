@@ -80,5 +80,8 @@ pub fn write_manifest(package_dir: &Path, manifest: &PackageManifest) -> Result<
 }
 
 pub fn walker_default(root: &Path) -> Walk {
-    WalkBuilder::new(root).standard_filters(true).build()
+    WalkBuilder::new(root)
+        .standard_filters(true)
+        .add_custom_ignore_filename(".typstignore")
+        .build()
 }
