@@ -1,10 +1,11 @@
+pub mod walkers;
+
 use std::{
     env, fs,
     path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result};
-use ignore::{Walk, WalkBuilder};
 use log::info;
 use sha2::{Digest, Sha256};
 use typst_syntax::package::PackageManifest;
@@ -77,8 +78,4 @@ pub fn write_manifest(package_dir: &Path, manifest: &PackageManifest) -> Result<
     fs::write(package_dir.join("typst.toml"), manifest)
         .context("Failed to write the package manifest file")?;
     Ok(())
-}
-
-pub fn walker_default(root: &Path) -> Walk {
-    WalkBuilder::new(root).standard_filters(true).build()
 }

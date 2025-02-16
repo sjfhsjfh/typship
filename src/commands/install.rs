@@ -3,10 +3,9 @@ use std::{fs, path::Path};
 use anyhow::{bail, Result};
 use clap::{Arg, Command};
 use dialoguer::Confirm;
-use glob::Pattern;
 use log::warn;
 
-use crate::utils::{read_manifest, typst_local_dir, walker_default};
+use crate::utils::{read_manifest, typst_local_dir, walkers::walker_install};
 
 pub fn cmd() -> Command {
     Command::new("install")
@@ -82,18 +81,9 @@ pub fn install(src_dir: &Path, target: &str) -> Result<()> {
         }
     }
 
-    let mut excludes = vec![];
-    for exclude in &current.package.exclude {
-        let pattern = Pattern::new(&exclude)?;
-        excludes.push(pattern);
-    }
-
-    for entry in walker_default(src_dir) {
+    for entry in walker_install(src_dir)? {
         if let Ok(entry) = entry {
             let path = entry.path();
-            if excludes.iter().any(|p| p.matches_path(path)) {
-                continue;
-            }
             let dest = version_dir.join(path.strip_prefix(src_dir).unwrap());
             if path.is_file() {
                 fs::copy(&path, &dest)?;

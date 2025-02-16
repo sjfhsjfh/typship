@@ -18,7 +18,8 @@ use std::str::FromStr;
 use typst_syntax::package::{PackageManifest, PackageVersion};
 
 use crate::config::CONFIG;
-use crate::utils::{config_file, save_config, walker_default};
+use crate::utils::walkers::walker_publish;
+use crate::utils::{config_file, save_config};
 
 // pub const UNIVERSE_REPO_ID: RepositoryId = RepositoryId::from("R_kgDOJ0PIWA");
 pub const UNIVERSE_REPO_NAME: &str = "packages";
@@ -259,7 +260,7 @@ pub async fn publish(manifest: &PackageManifest, package_dir: &Path) -> Result<(
     info!("Uploading files to personal fork...");
     let mut files = Vec::new();
 
-    for entry in walker_default(package_dir) {
+    for entry in walker_publish(package_dir) {
         if let Ok(entry) = entry {
             if !entry.path().is_file() {
                 continue;
