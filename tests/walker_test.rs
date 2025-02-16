@@ -45,7 +45,7 @@ fn test_files(
 #[test]
 fn test_ignore() -> io::Result<()> {
     test_files(
-        ["src", "src/lib.typ", "excludes_test.txt"].into(),
+        ["src", "src/lib.typ", "excludes_test.txt", "typst.toml"].into(),
         walker_publish(&walker_test_path()).into_iter().collect(),
     )
 }
@@ -55,5 +55,8 @@ fn test_exclude() -> io::Result<()> {
     let walker = walker_install(&walker_test_path())
         .map_err(|_| panic!("Walker not ok"))
         .unwrap();
-    test_files(["src", "src/lib.typ"].into(), walker.into_iter().collect())
+    test_files(
+        ["src", "src/lib.typ", "typst.toml"].into(),
+        walker.into_iter().collect(),
+    )
 }
