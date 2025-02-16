@@ -5,6 +5,7 @@ use std::path::Path;
 
 use super::read_manifest;
 
+/// Only `.typstignore`
 pub fn walker_publish(root: &Path) -> Walk {
     WalkBuilder::new(root)
         .standard_filters(true)
@@ -12,6 +13,7 @@ pub fn walker_publish(root: &Path) -> Walk {
         .build()
 }
 
+/// `.typstignore` and `package.excludes`
 pub fn walker_install(
     root: &Path,
 ) -> Result<Vec<std::result::Result<ignore::DirEntry, ignore::Error>>> {
@@ -36,7 +38,9 @@ pub fn walker_install(
         .build()
         .filter(|entry| {
             if let Ok(path) = entry {
-                return ok_excludes.iter().any(|p| p.matches_path(path.path()));
+                return !ok_excludes
+                    .iter()
+                    .any(|p| p.matches_path(path.path().strip_prefix(root).unwrap()));
             }
             false
         })
