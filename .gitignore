@@ -4,5 +4,5 @@
 .DS_Store
 
 # Testing
-typst.toml
-src/*.typ
+/typst.toml
+/src/*.typ

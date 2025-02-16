@@ -1,0 +1,10 @@
+[package]
+name = "walker-test"
+version = "0.1.0"
+entrypoint = "src/lib.typ"
+authors = ["sjfhsjfh"]
+description = ""
+keywords = [""]
+exclude = ["excludes_test.txt"]
+
+[tool]
