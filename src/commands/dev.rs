@@ -4,7 +4,7 @@ use log::{debug, info, warn};
 use std::path::Path;
 
 use crate::{
-    regs::universe::package_versions,
+    regs::universe::{package_versions, packages},
     utils::{read_manifest, typst_local_dir},
 };
 
@@ -33,14 +33,26 @@ pub async fn dev(package_dir: &Path) -> Result<()> {
         );
     }
 
-    if package_versions(&current.package.name)
+    if packages()
         .await?
         .items
         .into_iter()
-        .map(|v| v.name)
-        .any(|v| v == version.to_string())
+        .any(|p| p.name == current.package.name)
     {
-        warn!("Version `{}` is already available in the Universe", version);
+        if package_versions(&current.package.name)
+            .await?
+            .items
+            .into_iter()
+            .map(|v| v.name)
+            .any(|v| v == version.to_string())
+        {
+            warn!("Version `{}` is already available in the Universe", version);
+        }
+    } else {
+        warn!(
+            "Package `{}` is not available in the Universe (yet)",
+            current.package.name
+        );
     }
 
     let packages_dir = typst_local_dir()
