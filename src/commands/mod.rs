@@ -1,4 +1,6 @@
 pub mod check;
+pub mod clean;
+pub mod dev;
 pub mod download;
 pub mod exclude;
 pub mod init;

@@ -1,7 +1,8 @@
 use std::env;
 use std::io::Write;
+use std::path::PathBuf;
 
-use clap::Command;
+use clap::{ArgMatches, Command};
 use log::error;
 
 mod commands;
@@ -33,6 +34,8 @@ async fn main() {
         .about("A simple package manager for Typst")
         .subcommand_required(true)
         .subcommand(commands::check::cmd())
+        .subcommand(commands::clean::cmd())
+        .subcommand(commands::dev::cmd())
         .subcommand(commands::download::cmd())
         .subcommand(commands::exclude::cmd())
         .subcommand(commands::init::cmd())
@@ -43,40 +46,49 @@ async fn main() {
 
     let current_dir = std::env::current_dir().expect("Failed to get the current directory");
 
-    if let Err(e) = match matches.subcommand() {
-        Some(("check", _)) => commands::check::check(&current_dir),
+    if let Err(e) = match_cmd(&current_dir, &matches).await {
+        error!("{:?}", e);
+    }
+}
+
+async fn match_cmd(current_dir: &PathBuf, matches: &ArgMatches) -> anyhow::Result<()> {
+    match matches.subcommand() {
+        Some(("check", _)) => commands::check::check(current_dir),
+        Some(("clean", m)) => {
+            commands::clean::clean(m.get_one::<String>("package").map(|s| s.as_str()))
+        }
+        Some(("dev", _)) => {
+            commands::dev::dev(current_dir).await?;
+            Ok(())
+        }
         Some(("download", m)) => commands::download::download(
             m.get_one::<String>("repository").unwrap(),
             m.get_one::<String>("checkout").map(|s| s.as_str()),
             m.get_one::<String>("namespace").unwrap(),
         ),
         Some(("exclude", m)) => commands::exclude::exclude(
-            &current_dir,
+            current_dir,
             m.get_many::<String>("files")
                 .unwrap_or_default()
                 .map(|s| s.as_str())
                 .collect(),
         ),
-        Some(("init", m)) => commands::init::init(
-            &current_dir,
-            m.get_one::<String>("name").map(|s| s.as_str()),
-        ),
-        Some(("install", m)) => commands::install::install(
-            &current_dir,
-            m.get_one::<String>("target").unwrap().as_str(),
-        ),
+        Some(("init", m)) => {
+            commands::init::init(current_dir, m.get_one::<String>("name").map(|s| s.as_str()))
+        }
+        Some(("install", m)) => {
+            commands::install::install(current_dir, m.get_one::<String>("target").unwrap().as_str())
+        }
         Some(("login", m)) => {
             commands::login::login(m.get_one::<String>("registry").unwrap().as_str())
         }
         Some(("publish", m)) => {
             commands::publish::publish(
-                &current_dir,
+                current_dir,
                 m.get_one::<String>("registry").unwrap().as_str(),
             )
             .await
         }
         _ => Ok(()),
-    } {
-        error!("{:?}", e);
     }
 }
