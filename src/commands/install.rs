@@ -3,7 +3,7 @@ use std::{fs, path::Path};
 use anyhow::{bail, Result};
 use clap::{Arg, Command};
 use dialoguer::Confirm;
-use log::warn;
+use log::{debug, warn};
 
 use crate::utils::{read_manifest, typst_local_dir, walkers::walker_install};
 
@@ -85,7 +85,11 @@ pub fn install(src_dir: &Path, target: &str) -> Result<()> {
         if let Ok(entry) = entry {
             let path = entry.path();
             let dest = version_dir.join(path.strip_prefix(src_dir).unwrap());
+            debug!("Copying {:?} to {:?}", path, dest);
             if path.is_file() {
+                if let Some(parent) = dest.parent() {
+                    fs::create_dir_all(parent)?;
+                }
                 fs::copy(&path, &dest)?;
             } else if path.is_dir() {
                 fs::create_dir_all(&dest)?;
