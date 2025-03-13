@@ -1,29 +1,32 @@
 use anyhow::{bail, Result};
-use clap::Command;
+use clap::Parser;
 use log::{debug, info, warn};
 use std::path::Path;
 
 use crate::{
+    commands::clean::CleanArgs,
     regs::universe::{package_versions, packages},
     utils::{read_manifest, typst_local_dir},
 };
 
 use super::clean::clean;
 
-pub fn cmd() -> Command {
-    Command::new("dev")
-        .about("Create a dev symlink")
-        .long_about(
-            "Creates a symlink to the package directory (if possible) for template development.",
-        )
-}
+const ABOUT: &str = "Create a dev symlink";
+const LONG_ABOUT: &str =
+    "Creates a symlink to the package directory (if possible) for template development.";
+
+#[derive(Parser)]
+#[command(about = ABOUT, long_about = LONG_ABOUT)]
+pub struct DevArgs {}
 
 pub async fn dev(package_dir: &Path) -> Result<()> {
     let current = read_manifest(package_dir)?;
     let version = current.package.version;
 
     info!("Cleaning up the existing symlinks...");
-    clean(Some(current.package.name.as_str()))?;
+    clean(&CleanArgs {
+        package: Some(current.package.name.to_string()),
+    })?;
 
     if current.package.version != version {
         bail!(

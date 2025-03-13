@@ -2,7 +2,8 @@ use std::env;
 use std::io::Write;
 use std::path::PathBuf;
 
-use clap::{ArgMatches, Command};
+use clap::Parser;
+use commands::Commands;
 use log::error;
 
 mod commands;
@@ -11,10 +12,22 @@ mod model;
 mod regs;
 mod utils;
 
+pub const NAME: &str = env!("CARGO_PKG_NAME");
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub const ABOUT: &str = "A simple package manager for Typst";
+
+#[derive(Parser)]
+#[command(name = NAME)]
+#[command(version = VERSION)]
+#[command(about = ABOUT, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
 #[tokio::main]
 async fn main() {
-    const NAME: &str = env!("CARGO_PKG_NAME");
-    const VERSION: &str = env!("CARGO_PKG_VERSION");
     env_logger::Builder::from_env(
         env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info"),
     )
@@ -29,67 +42,24 @@ async fn main() {
     })
     .init();
 
-    let matches = Command::new(NAME)
-        .version(VERSION)
-        .about("A simple package manager for Typst")
-        .subcommand_required(true)
-        .subcommand(commands::check::cmd())
-        .subcommand(commands::clean::cmd())
-        .subcommand(commands::dev::cmd())
-        .subcommand(commands::download::cmd())
-        .subcommand(commands::exclude::cmd())
-        .subcommand(commands::init::cmd())
-        .subcommand(commands::install::cmd())
-        .subcommand(commands::login::cmd())
-        .subcommand(commands::publish::cmd())
-        .get_matches();
-
+    let cli = Cli::parse();
     let current_dir = std::env::current_dir().expect("Failed to get the current directory");
 
-    if let Err(e) = match_cmd(&current_dir, &matches).await {
+    if let Err(e) = match_cmd(&current_dir, &cli).await {
         error!("{:?}", e);
     }
 }
 
-async fn match_cmd(current_dir: &PathBuf, matches: &ArgMatches) -> anyhow::Result<()> {
-    match matches.subcommand() {
-        Some(("check", _)) => commands::check::check(current_dir),
-        Some(("clean", m)) => {
-            commands::clean::clean(m.get_one::<String>("package").map(|s| s.as_str()))
-        }
-        Some(("dev", _)) => {
-            commands::dev::dev(current_dir).await?;
-            Ok(())
-        }
-        Some(("download", m)) => commands::download::download(
-            m.get_one::<String>("repository").unwrap(),
-            m.get_one::<String>("checkout").map(|s| s.as_str()),
-            m.get_one::<String>("namespace").unwrap(),
-        ),
-        Some(("exclude", m)) => commands::exclude::exclude(
-            current_dir,
-            m.get_many::<String>("files")
-                .unwrap_or_default()
-                .map(|s| s.as_str())
-                .collect(),
-        ),
-        Some(("init", m)) => {
-            commands::init::init(current_dir, m.get_one::<String>("name").map(|s| s.as_str()))
-        }
-        Some(("install", m)) => {
-            commands::install::install(current_dir, m.get_one::<String>("target").unwrap().as_str())
-        }
-        Some(("login", m)) => {
-            commands::login::login(m.get_one::<String>("registry").unwrap().as_str())
-        }
-        Some(("publish", m)) => {
-            commands::publish::publish(
-                current_dir,
-                m.get_one::<String>("registry").unwrap().as_str(),
-                m.get_flag("dry-run"),
-            )
-            .await
-        }
-        _ => Ok(()),
+async fn match_cmd(current_dir: &PathBuf, args: &Cli) -> anyhow::Result<()> {
+    match &args.command {
+        Commands::Check(_) => commands::check::check(current_dir),
+        Commands::Clean(args) => commands::clean::clean(&args),
+        Commands::Dev(_) => commands::dev::dev(current_dir).await,
+        Commands::Download(args) => commands::download::download(args),
+        Commands::Exclude(args) => commands::exclude::exclude(current_dir, args),
+        Commands::Init(args) => commands::init::init(current_dir, args),
+        Commands::Install(args) => commands::install::install(current_dir, args),
+        Commands::Login(args) => commands::login::login(args),
+        Commands::Publish(args) => commands::publish::publish(current_dir, args).await,
     }
 }

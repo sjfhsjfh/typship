@@ -1,29 +1,28 @@
 use std::{fs, path::Path};
 
 use anyhow::{bail, Result};
-use clap::{Arg, Command};
+use clap::Parser;
 use dialoguer::Confirm;
 use log::{debug, warn};
 
 use crate::utils::{read_manifest, typst_local_dir, walkers::walker_install};
 
-pub fn cmd() -> Command {
-    Command::new("install")
-        .about("Install the current package to a certain namespace")
-        .long_about("Install the package to a certain namespace. Must be in the package directory.")
-        .arg(
-            Arg::new("target")
-                .required(true)
-                .help("The target namespace to install the package")
-                .long_help(
-                    "The target namespace to install the package. Please avoid using `preview`.",
-                ),
-        )
+const ABOUT: &str = "Install the current package to a certain namespace";
+const LONG_ABOUT: &str =
+    "Install the package to a certain namespace. Must be in the package directory.";
+
+#[derive(Parser)]
+#[command(about = ABOUT, long_about = LONG_ABOUT)]
+pub struct InstallArgs {
+    /// The target namespace to install the package
+    #[arg(
+        long_help = "The target namespace to install the package. Please avoid using `preview`."
+    )]
+    pub target: String,
 }
 
-/// target should not contain `@` prefix
-pub fn install(src_dir: &Path, target: &str) -> Result<()> {
-    let mut target = target.to_string();
+pub fn install(src_dir: &Path, args: &InstallArgs) -> Result<()> {
+    let mut target = args.target.to_string();
     while target.starts_with('@') {
         if !Confirm::new()
             .with_prompt(format!(
