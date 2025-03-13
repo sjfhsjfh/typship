@@ -106,7 +106,7 @@ pub fn login() -> Result<()> {
     Ok(())
 }
 
-pub async fn publish(manifest: &PackageManifest, package_dir: &Path) -> Result<()> {
+pub async fn publish(manifest: &PackageManifest, package_dir: &Path, dry_run: bool) -> Result<()> {
     // TODO: check if exist in package repo(name), check pr
     info!("Checking the packages in the official packages repo...");
     let mut is_new_package = true;
@@ -209,53 +209,57 @@ pub async fn publish(manifest: &PackageManifest, package_dir: &Path) -> Result<(
     }
 
     info!("Creating corresponding branch in your fork...");
-    let branch_name = submission.branch_name().clone();
-    let branch_name = branch_name.as_str();
-    let main_head = client
-        .repos(UNIVERSE_REPO_OWNER, UNIVERSE_REPO_NAME)
-        .get_ref(&params::repos::Reference::Branch("main".into()))
-        .await?
-        .object;
-    let main_sha = match &main_head {
-        Object::Commit { sha, .. } => sha,
-        Object::Tag { sha, .. } => sha,
-        _ => unreachable!(),
-    };
+    if !dry_run {
+        let branch_name = submission.branch_name().clone();
+        let branch_name = branch_name.as_str();
+        let main_head = client
+            .repos(UNIVERSE_REPO_OWNER, UNIVERSE_REPO_NAME)
+            .get_ref(&params::repos::Reference::Branch("main".into()))
+            .await?
+            .object;
+        let main_sha = match &main_head {
+            Object::Commit { sha, .. } => sha,
+            Object::Tag { sha, .. } => sha,
+            _ => unreachable!(),
+        };
 
-    if my_fork
-        .list_branches()
-        .send()
-        .await?
-        .into_stream(&client)
-        .try_any(|b| async move { b.name == branch_name })
-        .await?
-    {
-        if !Confirm::new()
-            .with_prompt(format!(
-                "Branch `{}` already exists in your fork. Do you want to overwrite it?",
-                branch_name
-            ))
-            .default(false)
-            .interact()?
+        if my_fork
+            .list_branches()
+            .send()
+            .await?
+            .into_stream(&client)
+            .try_any(|b| async move { b.name == branch_name })
+            .await?
         {
-            bail!("Aborted");
+            if !Confirm::new()
+                .with_prompt(format!(
+                    "Branch `{}` already exists in your fork. Do you want to overwrite it?",
+                    branch_name
+                ))
+                .default(false)
+                .interact()?
+            {
+                bail!("Aborted");
+            }
+            my_fork
+                .delete_ref(&params::repos::Reference::Branch(branch_name.into()))
+                .await?;
         }
-        my_fork
-            .delete_ref(&params::repos::Reference::Branch(branch_name.into()))
+        let new_branch = my_fork
+            .create_ref(
+                &params::repos::Reference::Branch(submission.branch_name()),
+                main_sha,
+            )
             .await?;
-    }
-    let new_branch = my_fork
-        .create_ref(
-            &params::repos::Reference::Branch(submission.branch_name()),
-            main_sha,
-        )
-        .await?;
 
-    info!(
-        // TODO: add url here?
-        "Branch `{}` created",
-        new_branch.ref_field,
-    );
+        info!(
+            // TODO: add url here?
+            "Branch `{}` created",
+            new_branch.ref_field,
+        );
+    } else {
+        info!("Dry run: branch creation skipped");
+    }
 
     info!("Uploading files to personal fork...");
     let mut files = Vec::new();
@@ -278,52 +282,60 @@ pub async fn publish(manifest: &PackageManifest, package_dir: &Path) -> Result<(
             .collect::<Vec<_>>()
             .join("\n")
     );
-    if !Confirm::new()
-        .with_prompt("Do you want to continue?")
-        .default(false)
-        .interact()?
-    {
-        bail!("Aborted");
-    }
+    if !dry_run {
+        if !Confirm::new()
+            .with_prompt("Do you want to continue?")
+            .default(false)
+            .interact()?
+        {
+            bail!("Aborted");
+        }
 
-    // TODO: multi-threading?
-    for file in files {
-        let content = std::fs::read(&package_dir.join(&file))?;
-        my_fork
-            .create_file(
-                &submission
-                    .repo_path()
-                    .join(&file)
-                    .to_string_lossy()
-                    .into_owned(),
-                &format!("[Typship] Add {}", file.display()),
-                &content,
-            )
-            .branch(submission.branch_name())
-            .send()
-            .await
-            .map(|_| info!("Uploaded: {}", file.display()))?;
+        // TODO: multi-threading?
+        for file in files {
+            let content = std::fs::read(&package_dir.join(&file))?;
+            my_fork
+                .create_file(
+                    &submission
+                        .repo_path()
+                        .join(&file)
+                        .to_string_lossy()
+                        .into_owned(),
+                    &format!("[Typship] Add {}", file.display()),
+                    &content,
+                )
+                .branch(submission.branch_name())
+                .send()
+                .await
+                .map(|_| info!("Uploaded: {}", file.display()))?;
+        }
+    } else {
+        info!("Dry run: file upload skipped");
     }
 
     info!("Generating submission PR...");
-    if let Some(msg) = &submission.msg {
-        let sub = client
-            .pulls(UNIVERSE_REPO_OWNER, UNIVERSE_REPO_NAME)
-            .create(
-                submission.title(),
-                format!("{}:{}", me.login, submission.branch_name()),
-                "main",
-            )
-            .body(msg.to_string(manifest.template.is_some()))
-            .draft(true)
-            .send()
-            .await?;
-        info!(
-            "PR created: {}",
-            sub.html_url.unwrap().as_str().underlined()
-        );
+    if !dry_run {
+        if let Some(msg) = &submission.msg {
+            let sub = client
+                .pulls(UNIVERSE_REPO_OWNER, UNIVERSE_REPO_NAME)
+                .create(
+                    submission.title(),
+                    format!("{}:{}", me.login, submission.branch_name()),
+                    "main",
+                )
+                .body(msg.to_string(manifest.template.is_some()))
+                .draft(true)
+                .send()
+                .await?;
+            info!(
+                "PR created: {}",
+                sub.html_url.unwrap().as_str().underlined()
+            );
+        } else {
+            bail!("Missing submission message");
+        }
     } else {
-        bail!("Missing submission message");
+        info!("Dry run: PR creation skipped");
     }
     Ok(())
 }

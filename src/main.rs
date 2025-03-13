@@ -86,6 +86,7 @@ async fn match_cmd(current_dir: &PathBuf, matches: &ArgMatches) -> anyhow::Resul
             commands::publish::publish(
                 current_dir,
                 m.get_one::<String>("registry").unwrap().as_str(),
+                m.get_flag("dry-run"),
             )
             .await
         }
