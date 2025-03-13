@@ -33,13 +33,13 @@ typship help
 
 ### TL;DR
 
-To init a new package, simply run:
+To init a new package, simply run (this would start an interactive prompt):
 
 ```sh
 typship init
 ```
 
-To publish a package, run:
+To publish a package, run (then follow the instructions):
 
 ```sh
 typship publish
@@ -60,4 +60,3 @@ typship download <package-repo> -n my-packages
 ## TODO
 
 - [ ] i18n
-- [ ] typship dev(create symlink to the developing version? auto check?)
