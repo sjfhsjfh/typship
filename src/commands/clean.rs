@@ -4,12 +4,12 @@ use log::{info, warn};
 
 use crate::utils::typst_local_dir;
 
-const ABOUT: &str = "Clean the existing dev symlinks";
 const LONG_ABOUT: &str =
     "Clean the existing dev symlinks of all packages (or a certain package) in the data directory.";
 
 #[derive(Parser)]
-#[command(about = ABOUT, long_about = LONG_ABOUT)]
+#[command(long_about = LONG_ABOUT)]
+/// Clean the existing dev symlinks
 pub struct CleanArgs {
     /// Package name to clean, if not specified, all packages will be cleaned.
     pub package: Option<String>,

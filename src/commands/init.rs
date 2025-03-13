@@ -19,10 +19,8 @@ use crate::{
     utils::{read_manifest, write_manifest},
 };
 
-const ABOUT: &str = "Initialize a new package in the current directory";
-
 #[derive(Parser)]
-#[command(about = ABOUT)]
+/// Initialize a new package in the current directory
 pub struct InitArgs {
     /// The package name (optional)
     pub name: Option<String>,

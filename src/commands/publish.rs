@@ -6,20 +6,21 @@ use clap::{ArgAction, Parser};
 
 use crate::utils::read_manifest;
 
-const ABOUT: &str = "Publish the package to a certain registry";
 const LONG_ABOUT: &str =
     "Publish the package to a certain registry. Currently, only the official Universe (GitHub) registry is supported.";
 
 #[derive(Parser)]
-#[command(about = ABOUT, long_about = LONG_ABOUT)]
+#[command(long_about = LONG_ABOUT)]
+/// Publish the package to a certain registry
 pub struct PublishArgs {
-    /// The registry to publish
     #[arg(required = true)]
     #[arg(long_help = "The registry to publish. Supported registries: universe (GitHub).")]
+    /// The registry to publish
     pub registry: String,
-    /// Dry run the publish process
+
     #[arg(long, required = false, action = ArgAction::SetTrue)]
     #[arg(long_help = "Dry run the publish process. No actual changes will be made.")]
+    /// Dry run the publish process
     pub dry_run: bool,
 }
 

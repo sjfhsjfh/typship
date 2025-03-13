@@ -9,20 +9,21 @@ use crate::{
     utils::temp_subdir,
 };
 
-const ABOUT: &str =
-    "Download a package from git repository to a certain (defaults to `@local`) namespace";
 const LONG_ABOUT: &str = "Download a package from git repository to a certain (defaults to `@local`) namespace. You may specify a specific tag, commit, or branch to checkout to.";
 
 #[derive(Parser)]
-#[command(about = ABOUT, long_about = LONG_ABOUT)]
+#[command(long_about = LONG_ABOUT)]
+/// Download a package from git repository to a certain (defaults to `@local`) namespace
 pub struct DownloadArgs {
     /// Git repository URL
     pub repository: String,
-    /// Checkout to a specific tag, commit, or branch
+
     #[arg(short, long, value_name = "REF")]
+    /// Checkout to a specific tag, commit, or branch
     pub checkout: Option<String>,
-    /// Namespace to install the package to (without the `@` prefix)
+
     #[arg(short, long, default_value = "local")]
+    /// Namespace to install the package to (without the `@` prefix)
     pub namespace: String,
 }
 

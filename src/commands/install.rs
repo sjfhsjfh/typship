@@ -7,17 +7,17 @@ use log::{debug, warn};
 
 use crate::utils::{read_manifest, typst_local_dir, walkers::walker_install};
 
-const ABOUT: &str = "Install the current package to a certain namespace";
 const LONG_ABOUT: &str =
     "Install the package to a certain namespace. Must be in the package directory.";
 
 #[derive(Parser)]
-#[command(about = ABOUT, long_about = LONG_ABOUT)]
+#[command(long_about = LONG_ABOUT)]
+/// Install the current package to a certain namespace
 pub struct InstallArgs {
-    /// The target namespace to install the package
     #[arg(
         long_help = "The target namespace to install the package. Please avoid using `preview`."
     )]
+    /// The target namespace to install the package
     pub target: String,
 }
 

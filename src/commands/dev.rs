@@ -11,12 +11,12 @@ use crate::{
 
 use super::clean::clean;
 
-const ABOUT: &str = "Create a dev symlink";
 const LONG_ABOUT: &str =
     "Creates a symlink to the package directory (if possible) for template development.";
 
 #[derive(Parser)]
-#[command(about = ABOUT, long_about = LONG_ABOUT)]
+#[command(long_about = LONG_ABOUT)]
+/// Create a dev symlink
 pub struct DevArgs {}
 
 pub async fn dev(package_dir: &Path) -> Result<()> {

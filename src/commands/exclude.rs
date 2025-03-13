@@ -6,13 +6,11 @@ use typst_syntax::package::PackageManifest;
 
 use crate::utils::{read_manifest, write_manifest};
 
-const ABOUT: &str = "Exclude files for the published bundle";
-
 #[derive(Parser)]
-#[command(about = ABOUT)]
+/// Exclude files for the published bundle
 pub struct ExcludeArgs {
-    /// Files to exclude
     #[arg(required = true, num_args = 1..)]
+    /// Files to exclude
     pub files: Vec<String>,
 }
 
