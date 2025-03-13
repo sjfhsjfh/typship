@@ -1,45 +1,42 @@
 use std::{fs, path::PathBuf};
 
 use anyhow::{bail, Result};
-use clap::{Arg, Command};
+use clap::Parser;
 use log::info;
 
-use crate::{commands::install::install, utils::temp_subdir};
+use crate::{
+    commands::install::{install, InstallArgs},
+    utils::temp_subdir,
+};
 
-pub fn cmd() -> Command {
-    Command::new("download")
-        .about("Download a package from git repository to a certain (defaults to `@local`) namespace")
-        .long_about("Download a package from git repository to a certain (defaults to `@local`) namespace. You may specify a specific tag, commit, or branch to checkout to.")
-        .arg(
-            Arg::new("repository")
-                .help("Git repository URL")
-                .required(true),
-        )
-        .arg(
-            Arg::new("checkout")
-                .help("Checkout to a specific tag, commit, or branch")
-                .short('c')
-                .long("checkout")
-                .required(false)
-                .value_name("REF")
-        )
-        .arg(
-            Arg::new("namespace")
-                .help("Namespace to install the package to (without the `@` prefix)")
-                .short('n')
-                .long("namespace")
-                .default_value("local")
-                .value_name("NAMESPACE")
-        )
+const LONG_ABOUT: &str = "Download a package from git repository to a certain (defaults to `@local`) namespace. You may specify a specific tag, commit, or branch to checkout to.";
+
+#[derive(Parser)]
+#[command(long_about = LONG_ABOUT)]
+/// Download a package from git repository to a certain (defaults to `@local`) namespace
+pub struct DownloadArgs {
+    /// Git repository URL
+    pub repository: String,
+
+    #[arg(short, long, value_name = "REF")]
+    /// Checkout to a specific tag, commit, or branch
+    pub checkout: Option<String>,
+
+    #[arg(short, long, default_value = "local")]
+    /// Namespace to install the package to (without the `@` prefix)
+    pub namespace: String,
 }
 
-// TODO: allow checkout tag, commit, branch
-
-pub fn download(repo: &str, checkout: Option<&str>, namespace: &str) -> Result<()> {
-    let temp_dir = temp_subdir(repo);
+pub fn download(args: &DownloadArgs) -> Result<()> {
+    let temp_dir = temp_subdir(&args.repository);
     fs::create_dir_all(&temp_dir)?;
 
-    let res = temp_jobs(temp_dir.clone(), repo, checkout, namespace);
+    let res = temp_jobs(
+        temp_dir.clone(),
+        &args.repository,
+        args.checkout.as_deref(),
+        &args.namespace,
+    );
     fs::remove_dir_all(&temp_dir)?;
     res?;
 
@@ -77,6 +74,11 @@ fn temp_jobs(temp_dir: PathBuf, repo: &str, checkout: Option<&str>, namespace: &
     }
 
     info!("Installing...");
-    install(&temp_dir, namespace)?;
+    install(
+        &temp_dir,
+        &InstallArgs {
+            target: namespace.to_string(),
+        },
+    )?;
     Ok(())
 }

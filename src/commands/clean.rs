@@ -1,25 +1,22 @@
 use anyhow::{bail, Result};
-use clap::{Arg, Command};
+use clap::Parser;
 use log::{info, warn};
 
 use crate::utils::typst_local_dir;
 
-pub fn cmd() -> Command {
-    Command::new("clean")
-        .about("Clean the existing dev symlinks")
-        .long_about(
-            "Clean the existing dev symlinks of all packages (or a certain package) in the data directory.",
-        )
-        .arg(
-            Arg::new("package")
-                .help("Package name to clean, if not specified, all packages will be cleaned.")
-                .required(false)
-                .value_name("NAME"),
-        )
+const LONG_ABOUT: &str =
+    "Clean the existing dev symlinks of all packages (or a certain package) in the data directory.";
+
+#[derive(Parser)]
+#[command(long_about = LONG_ABOUT)]
+/// Clean the existing dev symlinks
+pub struct CleanArgs {
+    /// Package name to clean, if not specified, all packages will be cleaned.
+    pub package: Option<String>,
 }
 
-pub fn clean(target: Option<&str>) -> Result<()> {
-    if let Some(name) = target {
+pub fn clean(args: &CleanArgs) -> Result<()> {
+    if let Some(name) = &args.package {
         clean_one(name)?;
     } else {
         let packages_dir = typst_local_dir().join("preview");

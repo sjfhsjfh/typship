@@ -2,37 +2,34 @@ use std::path::Path;
 
 use crate::regs::universe::{self};
 use anyhow::Result;
-use clap::{Arg, ArgAction, Command};
+use clap::{ArgAction, Parser};
 
 use crate::utils::read_manifest;
 
-pub fn cmd() -> Command {
-    Command::new("publish")
-        .about("Publish the package to the certain registry")
-        .long_about("Publish the package to the certain registry. Currently, only the official Universe (GitHub) registry is supported.")
-        .arg(
-            Arg::new("registry")
-                .required(true)
-                .help("The registry to publish (universe)")
-                .long_help(
-                    "The registry to publish. Supported registries: universe (GitHub).",
-                ),
-        ).arg(
-            Arg::new("dry-run")
-                .long("dry-run")
-                .required(false)
-                .action(ArgAction::SetTrue)
-                .help("Dry run the publish process")
-                .long_help("Dry run the publish process. No actual changes will be made."),
-        )
+const LONG_ABOUT: &str =
+    "Publish the package to a certain registry. Currently, only the official Universe (GitHub) registry is supported.";
+
+#[derive(Parser)]
+#[command(long_about = LONG_ABOUT)]
+/// Publish the package to a certain registry
+pub struct PublishArgs {
+    #[arg(required = true)]
+    #[arg(long_help = "The registry to publish. Supported registries: universe (GitHub).")]
+    /// The registry to publish
+    pub registry: String,
+
+    #[arg(long, required = false, action = ArgAction::SetTrue)]
+    #[arg(long_help = "Dry run the publish process. No actual changes will be made.")]
+    /// Dry run the publish process
+    pub dry_run: bool,
 }
 
-pub async fn publish(package_dir: &Path, registry: &str, dry_run: bool) -> Result<()> {
+pub async fn publish(package_dir: &Path, args: &PublishArgs) -> Result<()> {
     let current = read_manifest(package_dir)?;
-    Ok(match registry {
-        "universe" => universe::publish(&current, package_dir, dry_run).await?,
+    Ok(match args.registry.as_str() {
+        "universe" => universe::publish(&current, package_dir, args.dry_run).await?,
         _ => {
-            anyhow::bail!("Unsupported registry: {}", registry);
+            anyhow::bail!("Unsupported registry: {}", args.registry);
         }
     })
 }

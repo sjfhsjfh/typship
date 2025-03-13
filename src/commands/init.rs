@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Result};
-use clap::{Arg, Command};
+use clap::Parser;
 use dialoguer::{Confirm, Input, MultiSelect};
 use log::info;
 use regex::Regex;
@@ -19,14 +19,11 @@ use crate::{
     utils::{read_manifest, write_manifest},
 };
 
-pub fn cmd() -> Command {
-    Command::new("init")
-        .about("Initialize a new package in the current directory")
-        .arg(
-            Arg::new("name")
-                .required(false)
-                .help("The package name (optional)"),
-        )
+#[derive(Parser)]
+/// Initialize a new package in the current directory
+pub struct InitArgs {
+    /// The package name (optional)
+    pub name: Option<String>,
 }
 
 fn entrypoint_validator(input: &String) -> std::result::Result<(), anyhow::Error> {
@@ -36,7 +33,7 @@ fn entrypoint_validator(input: &String) -> std::result::Result<(), anyhow::Error
     Ok(())
 }
 
-pub fn init(package_dir: &Path, provided_name: Option<&str>) -> Result<()> {
+pub fn init(package_dir: &Path, args: &InitArgs) -> Result<()> {
     if read_manifest(package_dir).is_ok() {
         if !Confirm::new()
             .with_prompt("A package manifest already exists. Overwrite?")
@@ -50,7 +47,7 @@ pub fn init(package_dir: &Path, provided_name: Option<&str>) -> Result<()> {
     info!("Initializing a new package...");
 
     let name_re = Regex::new(r"^[a-zA-Z_-][a-zA-Z0-9_-]*$").unwrap();
-    let name = if let Some(name) = provided_name {
+    let name = if let Some(name) = &args.name {
         if !name_re.is_match(name) {
             bail!("Invalid package name")
         }
