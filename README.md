@@ -5,7 +5,7 @@
 
 ---
 
-A tool for Typst package development and publishing.
+A tool for [Typst](https://typst.app/) package development and publishing.
 
 _The name `typship` is a portmanteau of **Typst** and **spaceship**, since it sends packages to the **[universe](https://typst.app/universe/)**._
 
