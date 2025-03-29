@@ -1,11 +1,13 @@
-use std::{fs, path::Path};
+use std::fs;
+use std::path::Path;
 
 use anyhow::{bail, Result};
 use clap::Parser;
 use dialoguer::Confirm;
 use log::{debug, warn};
 
-use crate::utils::{read_manifest, typst_local_dir, walkers::walker_install};
+use crate::utils::walkers::walker_install;
+use crate::utils::{read_manifest, typst_local_dir};
 
 const LONG_ABOUT: &str =
     "Install the package to a certain namespace. Must be in the package directory.";
@@ -27,7 +29,7 @@ pub fn install(src_dir: &Path, args: &InstallArgs) -> Result<()> {
         if !Confirm::new()
             .with_prompt(format!(
                 "Namespace parameter should not contain `@` prefix. Do you mean `{}`?",
-                target[1..].to_string()
+                &target[1..]
             ))
             .default(true)
             .interact()?
@@ -40,27 +42,24 @@ pub fn install(src_dir: &Path, args: &InstallArgs) -> Result<()> {
 
     let current = read_manifest(src_dir)?;
 
-    match target.as_str() {
-        "preview" => {
-            // TODO: recommend `typship dev`(symlink) after finishing the dev command
-            warn!(
-                "Installing directly to `preview` is discouraged, since it might break the versioning."
-            );
-            if !Confirm::new()
-                .with_prompt("Are you sure you want to install directly to `preview`?")
-                .default(false)
-                .interact()?
-            {
-                bail!("Aborted");
-            }
+    if target.as_str() == "preview" {
+        // TODO: recommend `typship dev`(symlink) after finishing the dev command
+        warn!(
+            "Installing directly to `preview` is discouraged, since it might break the versioning."
+        );
+        if !Confirm::new()
+            .with_prompt("Are you sure you want to install directly to `preview`?")
+            .default(false)
+            .interact()?
+        {
+            bail!("Aborted");
         }
-        _ => {}
     }
 
     let namespace_dir = typst_local_dir().join(&target);
-    let package_dir = namespace_dir.join(&current.package.name.as_str());
+    let package_dir = namespace_dir.join(current.package.name.as_str());
 
-    let version_dir = package_dir.join(&current.package.version.to_string());
+    let version_dir = package_dir.join(current.package.version.to_string());
     if !version_dir.exists() {
         std::fs::create_dir_all(&version_dir)?;
     }
@@ -80,19 +79,17 @@ pub fn install(src_dir: &Path, args: &InstallArgs) -> Result<()> {
         }
     }
 
-    for entry in walker_install(src_dir)? {
-        if let Ok(entry) = entry {
-            let path = entry.path();
-            let dest = version_dir.join(path.strip_prefix(src_dir).unwrap());
-            debug!("Copying {:?} to {:?}", path, dest);
-            if path.is_file() {
-                if let Some(parent) = dest.parent() {
-                    fs::create_dir_all(parent)?;
-                }
-                fs::copy(&path, &dest)?;
-            } else if path.is_dir() {
-                fs::create_dir_all(&dest)?;
+    for entry in (walker_install(src_dir)?).into_iter().flatten() {
+        let path = entry.path();
+        let dest = version_dir.join(path.strip_prefix(src_dir).unwrap());
+        debug!("Copying {:?} to {:?}", path, dest);
+        if path.is_file() {
+            if let Some(parent) = dest.parent() {
+                fs::create_dir_all(parent)?;
             }
+            fs::copy(path, &dest)?;
+        } else if path.is_dir() {
+            fs::create_dir_all(&dest)?;
         }
     }
 

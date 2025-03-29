@@ -26,6 +26,7 @@ pub struct InitArgs {
     pub name: Option<String>,
 }
 
+#[allow(clippy::ptr_arg)]
 fn entrypoint_validator(input: &String) -> std::result::Result<(), anyhow::Error> {
     if !input.ends_with(".typ") {
         bail!("Entrypoint must end with '.typ'")
@@ -34,14 +35,13 @@ fn entrypoint_validator(input: &String) -> std::result::Result<(), anyhow::Error
 }
 
 pub fn init(package_dir: &Path, args: &InitArgs) -> Result<()> {
-    if read_manifest(package_dir).is_ok() {
-        if !Confirm::new()
+    if read_manifest(package_dir).is_ok()
+        && !Confirm::new()
             .with_prompt("A package manifest already exists. Overwrite?")
             .default(false)
             .interact()?
-        {
-            bail!("Aborted");
-        }
+    {
+        bail!("Aborted");
     }
 
     info!("Initializing a new package...");

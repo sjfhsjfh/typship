@@ -1,13 +1,12 @@
+use std::path::Path;
+
 use anyhow::{bail, Result};
 use clap::Parser;
 use log::{debug, info, warn};
-use std::path::Path;
 
-use crate::{
-    commands::clean::CleanArgs,
-    regs::universe::{package_versions, packages},
-    utils::{read_manifest, typst_local_dir},
-};
+use crate::commands::clean::CleanArgs;
+use crate::regs::universe::{package_versions, packages};
+use crate::utils::{read_manifest, typst_local_dir};
 
 use super::clean::clean;
 
@@ -60,7 +59,7 @@ pub async fn dev(package_dir: &Path) -> Result<()> {
 
     let packages_dir = typst_local_dir()
         .join("preview")
-        .join(&current.package.name.to_string());
+        .join(current.package.name.to_string());
     if !packages_dir.is_dir() {
         std::fs::create_dir_all(&packages_dir)?;
     }

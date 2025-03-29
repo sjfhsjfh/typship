@@ -1,27 +1,25 @@
 /// Typst Official Package Registry: Universeuse anyhow::anyhow;
-use anyhow::anyhow;
-use anyhow::{bail, Result};
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
+
+use anyhow::{anyhow, bail, Result};
 use crossterm::style::Stylize;
 use dialoguer::{Confirm, Input};
 use futures_util::TryStreamExt;
 use log::{info, warn};
-use octocrab::models::repos::Object;
-use octocrab::params;
-use octocrab::{
-    models::{pulls::PullRequest, repos::ContentItems},
-    Octocrab, Page,
-};
+use octocrab::models::pulls::PullRequest;
+use octocrab::models::repos::{ContentItems, Object};
+use octocrab::{params, Octocrab, Page};
 use once_cell::sync::{Lazy, OnceCell};
 use secrecy::SecretString;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use typst_syntax::package::{PackageManifest, PackageVersion};
 
 use crate::config::CONFIG;
 use crate::utils::walkers::walker_publish;
 use crate::utils::{config_file, save_config};
 
-// pub const UNIVERSE_REPO_ID: RepositoryId = RepositoryId::from("R_kgDOJ0PIWA");
+// pub const UNIVERSE_REPO_ID: RepositoryId =
+// RepositoryId::from("R_kgDOJ0PIWA");
 pub const UNIVERSE_REPO_NAME: &str = "packages";
 pub const UNIVERSE_REPO_OWNER: &str = "typst";
 
@@ -45,7 +43,8 @@ pub fn get_authenticated_client() -> Result<&'static Octocrab> {
     Ok(AUTH_CLIENT.get_or_init(|| Octocrab::builder().personal_token(token).build().unwrap()))
 }
 
-/// Get the list of package names under `packages/preview` directory in the official Universe (GitHub) registry.
+/// Get the list of package names under `packages/preview` directory in the
+/// official Universe (GitHub) registry.
 pub async fn packages() -> Result<ContentItems> {
     Ok(PUBLIC_CLIENT
         .repos(UNIVERSE_REPO_OWNER, UNIVERSE_REPO_NAME)
@@ -56,7 +55,8 @@ pub async fn packages() -> Result<ContentItems> {
         .await?)
 }
 
-/// Get the list of package versions under `packages/preview/{package_name}` directory in the official Universe (GitHub) registry.
+/// Get the list of package versions under `packages/preview/{package_name}`
+/// directory in the official Universe (GitHub) registry.
 pub async fn package_versions(package_name: &str) -> Result<ContentItems> {
     Ok(PUBLIC_CLIENT
         .repos(UNIVERSE_REPO_OWNER, UNIVERSE_REPO_NAME)
@@ -67,7 +67,8 @@ pub async fn package_versions(package_name: &str) -> Result<ContentItems> {
         .await?)
 }
 
-/// Get the list of *OPEN* pull requests in the official Universe (GitHub) registry.
+/// Get the list of *OPEN* pull requests in the official Universe (GitHub)
+/// registry.
 pub async fn pending_list() -> Result<Page<PullRequest>> {
     Ok(PUBLIC_CLIENT
         .pulls(UNIVERSE_REPO_OWNER, UNIVERSE_REPO_NAME)
@@ -137,8 +138,7 @@ pub async fn publish(manifest: &PackageManifest, package_dir: &Path, dry_run: bo
     for pr in prs.items {
         if let Some(submission) = pr
             .title
-            .map(|t| PackageSubmission::try_from_title(&t).ok())
-            .flatten()
+            .and_then(|t| PackageSubmission::try_from_title(&t).ok())
         {
             if submission.name == manifest.package.name {
                 match submission.version.cmp(&manifest.package.version) {
@@ -227,7 +227,7 @@ pub async fn publish(manifest: &PackageManifest, package_dir: &Path, dry_run: bo
             .list_branches()
             .send()
             .await?
-            .into_stream(&client)
+            .into_stream(client)
             .try_any(|b| async move { b.name == branch_name })
             .await?
         {
@@ -264,15 +264,13 @@ pub async fn publish(manifest: &PackageManifest, package_dir: &Path, dry_run: bo
     info!("Uploading files to personal fork...");
     let mut files = Vec::new();
 
-    for entry in walker_publish(package_dir) {
-        if let Ok(entry) = entry {
-            if !entry.path().is_file() {
-                continue;
-            }
-            let entry = entry.path();
-            let entry = entry.strip_prefix(package_dir).unwrap();
-            files.push(entry.to_path_buf());
+    for entry in walker_publish(package_dir).flatten() {
+        if !entry.path().is_file() {
+            continue;
         }
+        let entry = entry.path();
+        let entry = entry.strip_prefix(package_dir).unwrap();
+        files.push(entry.to_path_buf());
     }
     info!(
         "Files to upload:\n{}",
@@ -293,15 +291,15 @@ pub async fn publish(manifest: &PackageManifest, package_dir: &Path, dry_run: bo
 
         // TODO: multi-threading?
         for file in files {
-            let content = std::fs::read(&package_dir.join(&file))?;
+            let content = std::fs::read(package_dir.join(&file))?;
             my_fork
                 .create_file(
-                    &submission
+                    submission
                         .repo_path()
                         .join(&file)
                         .to_string_lossy()
                         .into_owned(),
-                    &format!("[Typship] Add {}", file.display()),
+                    format!("[Typship] Add {}", file.display()),
                     &content,
                 )
                 .branch(submission.branch_name())
@@ -352,11 +350,7 @@ impl PackageSubmission {
     }
 
     pub fn repo_path(&self) -> PathBuf {
-        PathBuf::from(format!(
-            "packages/preview/{}/{}",
-            self.name,
-            self.version.to_string()
-        ))
+        PathBuf::from(format!("packages/preview/{}/{}", self.name, self.version))
     }
 
     pub fn branch_name(&self) -> String {
@@ -384,7 +378,9 @@ struct SubmissionMessage {
     /// - [ ] an update for a package
     is_new_package: bool,
 
-    /// Please add a brief description of your package below and explain why you think it is useful to others. If this is an update, please briefly say what changed.
+    /// Please add a brief description of your package below and explain why you
+    /// think it is useful to others. If this is an update, please briefly say
+    /// what changed.
     ///
     /// Description: Explain what the package does and why it's useful.
     desc: String,
@@ -392,7 +388,8 @@ struct SubmissionMessage {
 
 impl SubmissionMessage {
     pub fn to_string(&self, has_template: bool) -> String {
-        // TODO: maybe leave a interactive dialog for the user to fill in the description?
+        // TODO: maybe leave a interactive dialog for the user to fill in the
+        // description?
         let template = "\n- [x] ensured that my package is licensed such that users can use and distribute the contents of its template directory without restriction, after modifying them through normal use.\n";
         format!(
             "I am submitting\n\

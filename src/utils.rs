@@ -1,9 +1,7 @@
 pub mod walkers;
 
-use std::{
-    env, fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
+use std::{env, fs};
 
 use anyhow::{Context, Result};
 use log::info;
@@ -38,8 +36,7 @@ pub fn load_config() -> Result<Config> {
 
 pub fn save_config(config: &Config) -> Result<()> {
     if !config_dir().exists() {
-        fs::create_dir_all(&config_dir())
-            .context("Failed to create the configuration directory")?;
+        fs::create_dir_all(config_dir()).context("Failed to create the configuration directory")?;
     }
     let config = toml::to_string_pretty(config)?;
     fs::write(config_file(), config).context("Failed to write the configuration file")?;

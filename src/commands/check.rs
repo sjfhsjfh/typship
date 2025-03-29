@@ -1,7 +1,8 @@
+use std::path::Path;
+
 use anyhow::Result;
 use clap::Parser;
 use log::info;
-use std::path::Path;
 
 use crate::utils::read_manifest;
 
