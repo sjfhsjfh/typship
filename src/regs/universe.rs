@@ -1,6 +1,7 @@
 /// Typst Official Package Registry: Universeuse anyhow::anyhow;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::{LazyLock, OnceLock};
 
 use anyhow::{anyhow, bail, Result};
 use crossterm::style::Stylize;
@@ -10,7 +11,6 @@ use log::{info, warn};
 use octocrab::models::pulls::PullRequest;
 use octocrab::models::repos::{ContentItems, Object};
 use octocrab::{params, Octocrab, Page};
-use once_cell::sync::{Lazy, OnceCell};
 use secrecy::SecretString;
 use typst_syntax::package::{PackageManifest, PackageVersion};
 
@@ -24,9 +24,10 @@ pub const UNIVERSE_REPO_NAME: &str = "packages";
 pub const UNIVERSE_REPO_OWNER: &str = "typst";
 
 /// Unauthorized client for public access
-pub static PUBLIC_CLIENT: Lazy<Octocrab> = Lazy::new(|| Octocrab::builder().build().unwrap());
+pub static PUBLIC_CLIENT: LazyLock<Octocrab> =
+    LazyLock::new(|| Octocrab::builder().build().unwrap());
 
-pub static AUTH_CLIENT: OnceCell<Octocrab> = OnceCell::new();
+pub static AUTH_CLIENT: OnceLock<Octocrab> = OnceLock::new();
 
 pub fn get_authenticated_client() -> Result<&'static Octocrab> {
     // TODO: better secret management
