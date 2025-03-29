@@ -20,7 +20,6 @@ fn test_files(
 
     let mut files: HashSet<String> = files
         .into_iter()
-        .map(|s| <&str as Into<PathBuf>>::into(s))
         .map(|s| walker_test_path().join(s).to_string_lossy().into_owned())
         .collect();
     files.insert(walker_test_path().to_string_lossy().into_owned());
@@ -46,7 +45,7 @@ fn test_files(
 fn test_ignore() -> io::Result<()> {
     test_files(
         ["src", "src/lib.typ", "excludes_test.txt", "typst.toml"].into(),
-        walker_publish(&walker_test_path()).into_iter().collect(),
+        walker_publish(&walker_test_path()).collect(),
     )
 }
 

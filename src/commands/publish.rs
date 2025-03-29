@@ -1,9 +1,9 @@
 use std::path::Path;
 
-use crate::regs::universe::{self};
 use anyhow::Result;
 use clap::{ArgAction, Parser};
 
+use crate::regs::universe;
 use crate::utils::read_manifest;
 
 const LONG_ABOUT: &str =
@@ -26,10 +26,11 @@ pub struct PublishArgs {
 
 pub async fn publish(package_dir: &Path, args: &PublishArgs) -> Result<()> {
     let current = read_manifest(package_dir)?;
-    Ok(match args.registry.as_str() {
+    match args.registry.as_str() {
         "universe" => universe::publish(&current, package_dir, args.dry_run).await?,
         _ => {
             anyhow::bail!("Unsupported registry: {}", args.registry);
         }
-    })
+    };
+    Ok(())
 }

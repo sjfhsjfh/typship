@@ -1,7 +1,8 @@
+use std::path::Path;
+
 use anyhow::Result;
 use glob::Pattern;
 use ignore::{Walk, WalkBuilder};
-use std::path::Path;
 
 use super::read_manifest;
 

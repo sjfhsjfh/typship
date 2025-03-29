@@ -1,6 +1,6 @@
 use std::env;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::Path;
 
 use clap::Parser;
 use commands::Commands;
@@ -50,10 +50,10 @@ async fn main() {
     }
 }
 
-async fn match_cmd(current_dir: &PathBuf, args: &Cli) -> anyhow::Result<()> {
+async fn match_cmd(current_dir: &Path, args: &Cli) -> anyhow::Result<()> {
     match &args.command {
         Commands::Check(_) => commands::check::check(current_dir),
-        Commands::Clean(args) => commands::clean::clean(&args),
+        Commands::Clean(args) => commands::clean::clean(args),
         Commands::Dev(_) => commands::dev::dev(current_dir).await,
         Commands::Download(args) => commands::download::download(args),
         Commands::Exclude(args) => commands::exclude::exclude(current_dir, args),
