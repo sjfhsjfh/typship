@@ -57,6 +57,13 @@ Download a package to `@my-packages`:
 typship download <package-repo> -n my-packages
 ```
 
+Copy a package to `@local`:
+
+```sh
+typship copy https://github.com/hongjr03/typst-zebraw -n local
+typship copy pkg:@preview/zebraw:0.4.4 -n local
+```
+
 ## TODO
 
 - [ ] i18n
