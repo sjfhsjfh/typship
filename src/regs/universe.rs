@@ -62,7 +62,7 @@ pub async fn package_versions(package_name: &str) -> Result<ContentItems> {
     Ok(PUBLIC_CLIENT
         .repos(UNIVERSE_REPO_OWNER, UNIVERSE_REPO_NAME)
         .get_content()
-        .path(format!("packages/preview/{}", package_name))
+        .path(format!("packages/preview/{package_name}"))
         .r#ref("main")
         .send()
         .await?)
@@ -93,7 +93,11 @@ pub fn login() -> Result<()> {
         return Ok(());
     }
     let token = dialoguer::Password::new()
-        .with_prompt("Enter your GitHub personal access token (use `fine-grained token` instead of `tokens (classic)`)")
+        .with_prompt(r#"
+Please create and get a `fine-grained token` from https://github.com/settings/personal-access-tokens/new.
+You must grant the "Contents", "Workflows", and "Pull requests" permission of the typst/packages forks to the token.
+Enter your GitHub personal access token
+"#.trim())
         .interact()?;
     CONFIG.try_lock()?.tokens.universe = Some(token);
     if let Ok(cfg) = CONFIG.try_lock() {
@@ -101,10 +105,7 @@ pub fn login() -> Result<()> {
     } else {
         anyhow::bail!("Failed to save the configuration file");
     }
-    info!(
-        "Your token has been saved to {}",
-        config_file().to_string_lossy()
-    );
+    info!("Your token has been saved to {}", config_file().display());
     Ok(())
 }
 
