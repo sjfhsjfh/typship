@@ -15,6 +15,7 @@ pub(crate) enum Commands {
     Check(check::CheckArgs),
     Clean(clean::CleanArgs),
     Dev(dev::DevArgs),
+    Copy(download::CopyArgs),
     Download(download::DownloadArgs),
     Exclude(exclude::ExcludeArgs),
     Init(init::InitArgs),
