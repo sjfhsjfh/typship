@@ -104,7 +104,7 @@ enum PackKind {
 pub fn copy(args: &CopyArgs) -> anyhow::Result<()> {
     println!("Copying {} to @{}", args.source, args.namespace);
 
-    let dst = DirPack::new("target/zebraw");
+    let mut dst = DirPack::new("target/zebraw");
 
     let inferred = if args.source.starts_with("git@") {
         PackKind::Git
