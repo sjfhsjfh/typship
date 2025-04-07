@@ -38,6 +38,9 @@ tinymist-package = { git = "https://github.com/Myriad-Dreamin/tinymist.git", rev
     "system",
 ] }
 
+# todo: upgrade
+# typst-upgrade = {git = "https://github.com/Coekjan/typst-upgrade"}
+
 # The profile that 'dist' will build with
 [profile.dist]
 inherits = "release"

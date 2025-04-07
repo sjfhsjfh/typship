@@ -60,6 +60,7 @@ async fn match_cmd(current_dir: &Path, args: &Cli) -> anyhow::Result<()> {
         Commands::Exclude(args) => commands::exclude::exclude(current_dir, args),
         Commands::Init(args) => commands::init::init(current_dir, args),
         Commands::Install(args) => commands::install::install(current_dir, args),
+        Commands::Sync(args) => commands::sync::sync(current_dir, args),
         Commands::Login(args) => commands::login::login(args),
         Commands::Publish(args) => commands::publish::publish(current_dir, args).await,
     }

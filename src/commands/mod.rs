@@ -9,6 +9,7 @@ pub mod init;
 pub mod install;
 pub mod login;
 pub mod publish;
+pub mod sync;
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -22,4 +23,5 @@ pub(crate) enum Commands {
     Install(install::InstallArgs),
     Login(login::LoginArgs),
     Publish(publish::PublishArgs),
+    Sync(sync::SyncArgs),
 }
