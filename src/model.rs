@@ -1,3 +1,5 @@
+pub mod manifest;
+
 pub const CATEGORIES: [&str; 19] = [
     "components",
     "visualization",

@@ -11,7 +11,7 @@ pub mod login;
 pub mod publish;
 
 #[derive(Subcommand)]
-pub(crate) enum Commands {
+pub enum Commands {
     Check(check::CheckArgs),
     Clean(clean::CleanArgs),
     Dev(dev::DevArgs),

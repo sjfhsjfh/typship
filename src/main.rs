@@ -1,4 +1,3 @@
-use std::env;
 use std::io::Write;
 use std::path::Path;
 
@@ -6,16 +5,7 @@ use clap::Parser;
 use commands::Commands;
 use log::error;
 
-mod commands;
-mod config;
-mod model;
-mod regs;
-mod utils;
-
-pub const NAME: &str = env!("CARGO_PKG_NAME");
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-pub const ABOUT: &str = "A simple package manager for Typst";
+use typship::{commands, ABOUT, NAME, VERSION};
 
 #[derive(Parser)]
 #[command(name = NAME)]
