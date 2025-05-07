@@ -57,16 +57,10 @@ pub fn typst_local_dir() -> PathBuf {
         .join(typst_kit::package::DEFAULT_PACKAGES_SUBDIR)
 }
 
-pub fn temp_dir() -> PathBuf {
-    let mut path = env::temp_dir();
-    path.push(env!("CARGO_PKG_NAME"));
-    path
-}
-
 pub fn temp_subdir(id: &str) -> PathBuf {
-    let mut path = temp_dir();
+    let mut path = env::temp_dir();
     let hash = format!("{:x}", Sha256::digest(id.as_bytes()));
-    path.push(hash);
+    path.push(format!("{}-{}", env!("CARGO_PKG_NAME"), hash));
     path
 }
 
