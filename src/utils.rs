@@ -60,7 +60,8 @@ pub fn typst_local_dir() -> PathBuf {
 pub fn temp_subdir(id: &str) -> PathBuf {
     let mut path = env::temp_dir();
     let hash = format!("{:x}", Sha256::digest(id.as_bytes()));
-    path.push(format!("{}-{}", env!("CARGO_PKG_NAME"), hash));
+    let truncated_hash = &hash[0..16];
+    path.push(format!("{}-{}", env!("CARGO_PKG_NAME"), truncated_hash));
     path
 }
 
