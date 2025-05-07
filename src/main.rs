@@ -45,10 +45,12 @@ async fn match_cmd(current_dir: &Path, args: &Cli) -> anyhow::Result<()> {
         Commands::Check(_) => commands::check::check(current_dir),
         Commands::Clean(args) => commands::clean::clean(args),
         Commands::Dev(_) => commands::dev::dev(current_dir).await,
+        Commands::Copy(args) => commands::download::copy(args),
         Commands::Download(args) => commands::download::download(args),
         Commands::Exclude(args) => commands::exclude::exclude(current_dir, args),
         Commands::Init(args) => commands::init::init(current_dir, args),
         Commands::Install(args) => commands::install::install(current_dir, args),
+        Commands::Sync(args) => commands::sync::sync(current_dir, args),
         Commands::Login(args) => commands::login::login(args),
         Commands::Publish(args) => commands::publish::publish(current_dir, args).await,
     }

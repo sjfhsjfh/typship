@@ -9,16 +9,19 @@ pub mod init;
 pub mod install;
 pub mod login;
 pub mod publish;
+pub mod sync;
 
 #[derive(Subcommand)]
 pub enum Commands {
     Check(check::CheckArgs),
     Clean(clean::CleanArgs),
     Dev(dev::DevArgs),
+    Copy(download::CopyArgs),
     Download(download::DownloadArgs),
     Exclude(exclude::ExcludeArgs),
     Init(init::InitArgs),
     Install(install::InstallArgs),
     Login(login::LoginArgs),
     Publish(publish::PublishArgs),
+    Sync(sync::SyncArgs),
 }
