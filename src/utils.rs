@@ -11,6 +11,8 @@ use typst_syntax::package::PackageManifest;
 
 use crate::config::Config;
 
+const DEFAULT_PACKAGES_SUBDIR: &str = "typst/packages"; // from typst-kit
+
 pub fn config_dir() -> &'static Path {
     static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
         dirs::config_dir()
@@ -54,7 +56,7 @@ pub fn save_config(config: &Config) -> Result<()> {
 pub fn typst_local_dir() -> PathBuf {
     dirs::data_dir()
         .expect("Failed to get the data directory")
-        .join(typst_kit::package::DEFAULT_PACKAGES_SUBDIR)
+        .join(DEFAULT_PACKAGES_SUBDIR)
 }
 
 pub fn temp_subdir(id: &str) -> PathBuf {
