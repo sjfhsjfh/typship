@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::sync::{LazyLock, OnceLock};
 
 use anyhow::{anyhow, bail, Result};
+use clap::ValueEnum;
 use crossterm::style::Stylize;
 use dialoguer::{Confirm, Input};
 use futures_util::TryStreamExt;
@@ -112,7 +113,18 @@ Enter your GitHub personal access token
     Ok(())
 }
 
-pub async fn publish(manifest: &PackageManifest, package_dir: &Path, dry_run: bool) -> Result<()> {
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum UploadMethod {
+    Sparse,
+    Api,
+}
+
+pub async fn publish(
+    manifest: &PackageManifest,
+    package_dir: &Path,
+    dry_run: bool,
+    upload_method: UploadMethod,
+) -> Result<()> {
     // TODO: check if exist in package repo(name), check pr
     info!("Checking the packages in the official packages repo...");
     let mut is_new_package = true;
@@ -294,27 +306,43 @@ pub async fn publish(manifest: &PackageManifest, package_dir: &Path, dry_run: bo
             bail!("Aborted");
         }
 
-        // Check git version and choose upload method
-        let use_sparse_checkout = check_git_version().unwrap_or(false);
-        
-        if use_sparse_checkout {
-            upload_files_sparse_checkout(
-                client,
-                &me.login,
-                &my_repo,
-                &submission,
-                package_dir,
-                &files,
-            ).await?;
-        } else {
-            upload_files_api(
-                client,
-                &me.login,
-                &my_repo,
-                &submission,
-                package_dir,
-                &files,
-            ).await?;
+        match upload_method {
+            UploadMethod::Sparse => {
+                let use_sparse_checkout = check_git_version().unwrap_or(false);
+                if use_sparse_checkout {
+                    upload_files_sparse_checkout(
+                        client,
+                        &me.login,
+                        &my_repo,
+                        &submission,
+                        package_dir,
+                        &files,
+                    )
+                    .await?;
+                } else {
+                    info!("Git version does not support sparse-checkout, automatically switch to api upload method.");
+                    upload_files_api(
+                        client,
+                        &me.login,
+                        &my_repo,
+                        &submission,
+                        package_dir,
+                        &files,
+                    )
+                    .await?;
+                }
+            }
+            UploadMethod::Api => {
+                upload_files_api(
+                    client,
+                    &me.login,
+                    &my_repo,
+                    &submission,
+                    package_dir,
+                    &files,
+                )
+                .await?;
+            }
         }
     } else {
         info!("Dry run: file upload skipped");
@@ -421,21 +449,19 @@ impl SubmissionMessage {
 }
 
 fn check_git_version() -> Result<bool> {
-    let output = Command::new("git")
-        .args(["--version"])
-        .output()?;
-    
+    let output = Command::new("git").args(["--version"]).output()?;
+
     if !output.status.success() {
         bail!("Failed to check git version");
     }
-    
+
     let version_str = String::from_utf8_lossy(&output.stdout);
     let version_regex = Regex::new(r"git version (\d+)\.(\d+)\.(\d+).*")?;
-    
+
     if let Some(captures) = version_regex.captures(&version_str) {
         let major: u32 = captures[1].parse()?;
         let minor: u32 = captures[2].parse()?;
-        
+
         // sparse-checkout --cone requires Git 2.25+
         Ok(major > 2 || (major == 2 && minor >= 25))
     } else {
@@ -482,115 +508,140 @@ async fn upload_files_sparse_checkout(
     files: &[PathBuf],
 ) -> Result<()> {
     let typst_toml_content = std::fs::read(package_dir.join("typst.toml"))?;
-    
+
     client
         .repos(user_login, repo_name)
         .create_file(
-            submission.repo_path().join("typst.toml").to_string_lossy().into_owned(),
+            submission
+                .repo_path()
+                .join("typst.toml")
+                .to_string_lossy()
+                .into_owned(),
             "[Typship] Initialize package version directory".to_string(),
             &typst_toml_content,
         )
         .branch(submission.branch_name())
         .send()
         .await?;
-    
-    
+
     let temp_dir = TempDir::new()?;
     let temp_path = temp_dir.path();
-    
+
     let fork_url = format!("https://github.com/{}/{}.git", user_login, repo_name);
     let target_path = submission.repo_path();
-    
+
     let output = Command::new("git")
         .args([
             "clone",
             "--filter=blob:none",
             "--no-checkout",
             "--single-branch",
-            "--branch", &submission.branch_name(),
+            "--branch",
+            &submission.branch_name(),
             &fork_url,
-            "repo"
+            "repo",
         ])
         .current_dir(temp_path)
         .output()?;
-    
+
     if !output.status.success() {
-        bail!("Failed to clone repository: {}", String::from_utf8_lossy(&output.stderr));
+        bail!(
+            "Failed to clone repository: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
-    
+
     let repo_path = temp_path.join("repo");
-    
+
     let output = Command::new("git")
         .args(["sparse-checkout", "init", "--cone"])
         .current_dir(&repo_path)
         .output()?;
-    
+
     if !output.status.success() {
-        bail!("Failed to initialize sparse-checkout: {}", String::from_utf8_lossy(&output.stderr));
+        bail!(
+            "Failed to initialize sparse-checkout: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
-    
+
     let output = Command::new("git")
         .args(["sparse-checkout", "set", &target_path.to_string_lossy()])
         .current_dir(&repo_path)
         .output()?;
-    
+
     if !output.status.success() {
-        bail!("Failed to set sparse-checkout patterns: {}", String::from_utf8_lossy(&output.stderr));
+        bail!(
+            "Failed to set sparse-checkout patterns: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
-    
+
     let output = Command::new("git")
         .args(["checkout"])
         .current_dir(&repo_path)
         .output()?;
-    
+
     if !output.status.success() {
-        bail!("Failed to checkout files: {}", String::from_utf8_lossy(&output.stderr));
+        bail!(
+            "Failed to checkout files: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
-    
+
     let local_target_dir = repo_path.join(&target_path);
     std::fs::create_dir_all(&local_target_dir)?;
-    
+
     for file in files {
         let src_path = package_dir.join(file);
         let dst_path = local_target_dir.join(file);
-        
+
         if let Some(parent) = dst_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        
+
         std::fs::copy(&src_path, &dst_path)?;
     }
-    
+
     let output = Command::new("git")
         .args(["add", "."])
         .current_dir(&repo_path)
         .output()?;
-    
+
     if !output.status.success() {
-        bail!("Failed to add files to git: {}", String::from_utf8_lossy(&output.stderr));
+        bail!(
+            "Failed to add files to git: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
-    
-    let commit_message = format!("[Typship] Add package {}:{}", submission.name, submission.version);
+
+    let commit_message = format!(
+        "[Typship] Add package {}:{}",
+        submission.name, submission.version
+    );
     let output = Command::new("git")
         .args(["commit", "-m", &commit_message])
         .current_dir(&repo_path)
         .output()?;
-    
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         if !stderr.contains("nothing to commit") {
             bail!("Failed to commit files: {}", stderr);
         }
     }
-    
+
     let output = Command::new("git")
         .args(["push", "origin", &submission.branch_name()])
         .current_dir(&repo_path)
         .output()?;
-    
+
     if !output.status.success() {
-        bail!("Failed to push to remote: {}", String::from_utf8_lossy(&output.stderr));
+        bail!(
+            "Failed to push to remote: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
-    
+
     Ok(())
 }
