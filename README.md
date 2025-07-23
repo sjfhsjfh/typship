@@ -44,8 +44,11 @@ typship init
 To publish a package, run (then follow the instructions):
 
 ```sh
-typship publish
+typship publish [--upload-method <sparse|api>]
 ```
+
+- `--upload-method sparse` (default): Uses git sparse-checkout to upload your package. Recommended for most users and faster for large packages.
+- `--upload-method api`: Uploads files one by one via GitHub API. Useful for legacy git versions or special needs, but slower.
 
 Download a package to `@local`:
 
