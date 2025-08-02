@@ -5,6 +5,8 @@ pub mod clean;
 pub mod dev;
 pub mod download;
 pub mod exclude;
+pub mod generate;
+pub mod host;
 pub mod init;
 pub mod install;
 pub mod login;
@@ -21,4 +23,6 @@ pub enum Commands {
     Install(install::InstallArgs),
     Login(login::LoginArgs),
     Publish(publish::PublishArgs),
+    Generate(generate::GenerateArgs),
+    Host(host::HostArgs),
 }
