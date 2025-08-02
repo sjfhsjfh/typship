@@ -51,5 +51,7 @@ async fn match_cmd(current_dir: &Path, args: &Cli) -> anyhow::Result<()> {
         Commands::Install(args) => commands::install::install(current_dir, args),
         Commands::Login(args) => commands::login::login(args),
         Commands::Publish(args) => commands::publish::publish(current_dir, args).await,
+        Commands::Generate(args) => commands::generate::generate(current_dir, args),
+        Commands::Host(args) => commands::host::host(current_dir, args),
     }
 }
