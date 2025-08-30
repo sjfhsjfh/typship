@@ -3381,7 +3381,9 @@ dependencies = [
 
 [[package]]
 name = "tinymist-package"
-version = "0.13.10"
+version = "0.13.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18e75a2aa5d6c1e6e223c23445ae9f691457bcadb0de3e0e9fe2ff0564452d3e"
 dependencies = [
  "base64",
  "comemo",
@@ -3403,7 +3405,9 @@ dependencies = [
 
 [[package]]
 name = "tinymist-std"
-version = "0.13.2"
+version = "0.13.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d600d9692370412528714a508c6601202ff2e8f1e74da715dd09d32fd5e78b95"
 dependencies = [
  "anyhow",
  "base64",
@@ -3427,7 +3431,7 @@ dependencies = [
  "serde_with",
  "siphasher",
  "tempfile",
- "web-time",
+ "time",
  "windows-sys 0.59.0",
 ]
 
@@ -4568,7 +4572,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

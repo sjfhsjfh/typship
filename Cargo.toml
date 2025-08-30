@@ -34,9 +34,7 @@ typst-kit = { version = "0.12.0", features = ["vendor-openssl"] }
 typst-syntax = "0.12.0"
 url = "2.5.4"
 whoami = "1.5.2"
-tinymist-package = { git = "https://github.com/Myriad-Dreamin/tinymist.git", rev = "16222aed4df6ac7d89772a2f89d69b32d32dca18", features = [
-    "system",
-] }
+tinymist-package = { version = "0.13", features = ["system"] }
 
 # todo: upgrade
 # typst-upgrade = {git = "https://github.com/Coekjan/typst-upgrade"}
@@ -45,6 +43,3 @@ tinymist-package = { git = "https://github.com/Myriad-Dreamin/tinymist.git", rev
 [profile.dist]
 inherits = "release"
 lto = "thin"
-
-[patch."https://github.com/Myriad-Dreamin/tinymist.git"]
-tinymist-package = { path = "../tinymist/crates/tinymist-package" }
