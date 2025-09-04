@@ -19,7 +19,7 @@ ecow = "0.2.6"
 flate2 = "1.1.2"
 tar = "0.4.44"
 toml = "0.9.5"
-tinymist-std = "0.13.24"
+tinymist-std = { version = "0.13.24", default-features = false }
 typst-syntax = "0.13.1"
 reqwest = "0.12.23"
 walkdir = "2.5.0"
