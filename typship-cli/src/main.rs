@@ -5,7 +5,16 @@ use clap::Parser;
 use commands::Commands;
 use log::error;
 
-use typship::{commands, ABOUT, NAME, VERSION};
+mod commands;
+mod config;
+mod model;
+mod regs;
+mod utils;
+
+const NAME: &str = env!("CARGO_PKG_NAME");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+const ABOUT: &str = "A simple package manager for Typst";
 
 #[derive(Parser)]
 #[command(name = NAME)]

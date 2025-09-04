@@ -1,0 +1,10 @@
+[package]
+name = "typship-pack"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+license-file.workspace = true
+
+[dependencies]
