@@ -3,7 +3,7 @@ use std::{io::Read, path::PathBuf, str::FromStr};
 use anyhow::bail;
 use clap::Parser;
 use log::info;
-use tinymist_package::{CloneIntoPack, GitClPack, MapPack, PackageSpec, TarballPack, UniversePack};
+use tinymist_package::{CloneIntoPack, DirPack, GitClPack, MapPack, PackageSpec, TarballPack, UniversePack};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use url::Url;
 
@@ -175,7 +175,7 @@ impl PackKind {
                 pack.clone_into_pack(&mut GitClPack::new(DETACHED_NAMESPACE.into(), git))?;
             }
             PackKind::Local { path } => {
-                pack.clone_into_pack(&mut tinymist_package::DirPack::new(path))?;
+                pack.clone_into_pack(&mut DirPack::new(path))?;
             }
             PackKind::Universe { spec } => {
                 pack.clone_into_pack(&mut UniversePack::new(spec))?;
@@ -220,7 +220,7 @@ pub async fn copy(args: &CopyArgs) -> anyhow::Result<()> {
             bail!("Cannot write to a git repository");
         }
         PackKind::Local { path } => {
-            tinymist_package::DirPack::new(path).clone_into_pack(&mut pack)?;
+            DirPack::new(path).clone_into_pack(&mut pack)?;
         }
         PackKind::Universe { spec: _ } => {
             bail!("Cannot write to the universe");
