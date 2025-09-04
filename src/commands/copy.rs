@@ -1,18 +1,63 @@
-use std::{
-    io::{Read, Write},
-    path::PathBuf,
-    str::FromStr,
-};
+use std::{io::Read, path::PathBuf, str::FromStr};
 
 use anyhow::bail;
 use clap::Parser;
 use log::info;
 use tinymist_package::{CloneIntoPack, GitClPack, MapPack, PackageSpec, TarballPack, UniversePack};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use url::Url;
 
 use crate::utils::{typst_cache_dir, typst_local_dir};
 
 const DETACHED_NAMESPACE: &str = "DETACHED";
+
+fn download(url: &Url) -> Result<Vec<u8>, anyhow::Error> {
+    let resp = reqwest::blocking::get(url.clone())
+        .map_err(|e| anyhow::anyhow!("Failed to download file: {}", e))?;
+    if !resp.status().is_success() {
+        bail!("Failed to download file: HTTP {}", resp.status());
+    }
+    let data = resp
+        .bytes()
+        .map_err(|e| anyhow::anyhow!("Failed to read response: {}", e))?
+        .to_vec();
+    Ok(data)
+}
+
+fn decompress_gzip(data: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
+    let mut d = flate2::read::GzDecoder::new(data);
+    let mut decompressed = vec![];
+    d.read_to_end(&mut decompressed)
+        .map_err(|e| anyhow::anyhow!("Failed to decompress tarball: {}", e))?;
+    Ok(decompressed)
+}
+
+/// TODO: remove this after a `CloneIntoPack` implementation from tinymist_package is available
+fn construct_tarball(pack: &mut MapPack) -> Result<Vec<u8>, anyhow::Error> {
+    fn custom(err: impl std::error::Error) -> tinymist_package::PackageError {
+        tinymist_package::PackageError::Other(Some(format!("{err}").into()))
+    }
+    let mut tar_data = vec![];
+    let mut tar_builder = tar::Builder::new(&mut tar_data);
+    tinymist_package::PackFs::read_all(pack, &mut |path, file| {
+        let mut header = tar::Header::new_gnu();
+        let data = match file {
+            tinymist_package::PackFile::Read(mut reader) => {
+                let mut dst = Vec::new();
+                std::io::copy(&mut reader, &mut dst).map_err(custom)?;
+                dst
+            }
+            tinymist_package::PackFile::Data(data) => data.into_inner().to_vec(),
+        };
+        header.set_size(data.len() as u64);
+        header.set_cksum();
+        tar_builder
+            .append_data(&mut header, path, &data[..])
+            .map_err(custom)?;
+        Ok(())
+    })?;
+    Ok(tar_builder.into_inner().map_err(custom)?.to_vec())
+}
 
 #[derive(Parser)]
 /// Copy
@@ -94,15 +139,20 @@ impl TryFrom<&str> for PackKind {
             "tar.remote" => {
                 let url = Url::parse(prefix.1)
                     .map_err(|e| anyhow::anyhow!("Invalid tarball URL: {}", e))?;
-                let resp = reqwest::blocking::get(url)
-                    .map_err(|e| anyhow::anyhow!("Failed to download tarball: {}", e))?;
-                if !resp.status().is_success() {
-                    bail!("Failed to download tarball: HTTP {}", resp.status());
-                }
-                let data = resp
-                    .bytes()
-                    .map_err(|e| anyhow::anyhow!("Failed to read tarball response: {}", e))?
-                    .to_vec();
+                let data = download(&url)?;
+                Ok(PackKind::TarStream { data })
+            }
+            "tar.gz.local" => {
+                let data = std::fs::read(prefix.1)
+                    .map_err(|e| anyhow::anyhow!("Failed to read tarball: {}", e))?;
+                let data = decompress_gzip(&data)?;
+                Ok(PackKind::TarStream { data })
+            }
+            "tar.gz.remote" => {
+                let url = Url::parse(prefix.1)
+                    .map_err(|e| anyhow::anyhow!("Invalid tarball URL: {}", e))?;
+                let data = download(&url)?;
+                let data = decompress_gzip(&data)?;
                 Ok(PackKind::TarStream { data })
             }
             "npm" => {
@@ -139,11 +189,11 @@ impl PackKind {
     }
 }
 
-pub fn copy(args: &CopyArgs) -> anyhow::Result<()> {
+pub async fn copy(args: &CopyArgs) -> anyhow::Result<()> {
     let src = match args.source.as_str() {
         "-" => {
             let mut data = vec![];
-            std::io::stdin().read_to_end(&mut data)?;
+            tokio::io::stdin().read_to_end(&mut data).await?;
             PackKind::TarStream { data }
         }
         rest => PackKind::try_from(rest)?,
@@ -175,11 +225,12 @@ pub fn copy(args: &CopyArgs) -> anyhow::Result<()> {
         PackKind::Universe { spec: _ } => {
             bail!("Cannot write to the universe");
         }
-        PackKind::TarStream { data } => {
+        PackKind::TarStream { data: _ } => {
             if !writing_to_stdout {
                 bail!("Writing to a non-stdout tar stream is not supported");
             }
-            std::io::stdout().write_all(data.as_slice())?;
+            let data = construct_tarball(&mut pack)?;
+            tokio::io::stdout().write_all(data.as_slice()).await?;
         }
         PackKind::Npm { spec: _ } => {
             bail!("Cannot write to npm");

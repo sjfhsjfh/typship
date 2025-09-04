@@ -11,7 +11,7 @@ pub static CONFIG: Lazy<Arc<Mutex<Config>>> = Lazy::new(|| {
     Mutex::new(
         load_config()
             .map_err(|e| {
-                error!("Failed to load/init the config:\n{:?}", e);
+                error!("Failed to load/init the config:\n{e:?}");
                 e
             })
             .unwrap(),

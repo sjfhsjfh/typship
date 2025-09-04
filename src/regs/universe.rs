@@ -61,7 +61,7 @@ pub async fn package_versions(package_name: &str) -> Result<ContentItems> {
     Ok(PUBLIC_CLIENT
         .repos(UNIVERSE_REPO_OWNER, UNIVERSE_REPO_NAME)
         .get_content()
-        .path(format!("packages/preview/{}", package_name))
+        .path(format!("packages/preview/{package_name}"))
         .r#ref("main")
         .send()
         .await?)
@@ -233,8 +233,7 @@ pub async fn publish(manifest: &PackageManifest, package_dir: &Path, dry_run: bo
         {
             if !Confirm::new()
                 .with_prompt(format!(
-                    "Branch `{}` already exists in your fork. Do you want to overwrite it?",
-                    branch_name
+                    "Branch `{branch_name}` already exists in your fork. Do you want to overwrite it?"
                 ))
                 .default(false)
                 .interact()?
