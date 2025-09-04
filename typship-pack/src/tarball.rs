@@ -1,3 +1,5 @@
+use crate::error::malform;
+
 use super::*;
 
 /// A package in the tarball.
@@ -23,8 +25,8 @@ impl<R: ?Sized + Read> fmt::Debug for TarballPack<R> {
 impl<R: Read> PackFs for TarballPack<R> {
     fn read_all(
         &mut self,
-        f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
-    ) -> PackageResult<()> {
+        f: &mut (dyn FnMut(&str, PackFile) -> PackResult<()> + Send + Sync),
+    ) -> PackResult<()> {
         for entry in self.reader.entries().map_err(malform)? {
             let entry = entry.map_err(malform)?;
             let header = entry.header();

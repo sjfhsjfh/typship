@@ -16,8 +16,8 @@ impl<S: PackFs, F> fmt::Debug for FilterPack<'_, S, F> {
 impl<Src: PackFs, F: Fn(&str) -> bool + Send + Sync> PackFs for FilterPack<'_, Src, F> {
     fn read_all(
         &mut self,
-        f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
-    ) -> PackageResult<()> {
+        f: &mut (dyn FnMut(&str, PackFile) -> PackResult<()> + Send + Sync),
+    ) -> PackResult<()> {
         self.src.read_all(&mut |path, file| {
             if (self.f)(path) {
                 f(path, file)

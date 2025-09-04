@@ -1,8 +1,36 @@
 use ecow::eco_format;
-use typst::diag::PackageError;
+use reqwest::{Certificate, blocking::Response};
 
 use super::*;
-use crate::registry::threaded_http;
+
+fn threaded_http<T: Send + Sync>(
+    url: &str,
+    cert_path: Option<&Path>,
+    f: impl FnOnce(Result<Response, reqwest::Error>) -> T + Send + Sync,
+) -> Option<T> {
+    std::thread::scope(|s| {
+        s.spawn(move || {
+            let client_builder = reqwest::blocking::Client::builder();
+
+            let client = if let Some(cert_path) = cert_path {
+                let cert = std::fs::read(cert_path)
+                    .ok()
+                    .and_then(|buf| Certificate::from_pem(&buf).ok());
+                if let Some(cert) = cert {
+                    client_builder.add_root_certificate(cert).build().unwrap()
+                } else {
+                    client_builder.build().unwrap()
+                }
+            } else {
+                client_builder.build().unwrap()
+            };
+
+            f(client.get(url).send())
+        })
+        .join()
+        .ok()
+    })
+}
 
 /// A package in the remote http.
 #[derive(Clone)]
@@ -29,17 +57,17 @@ impl<S: AsRef<str>> fmt::Debug for HttpPack<S> {
 impl<S: AsRef<str>> PackFs for HttpPack<S> {
     fn read_all(
         &mut self,
-        f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
-    ) -> PackageResult<()> {
+        f: &mut (dyn FnMut(&str, PackFile) -> PackResult<()> + Send + Sync),
+    ) -> PackResult<()> {
         let spec = &self.specifier;
         let url = self.url.as_ref();
         threaded_http(url, None, |resp| {
             let reader = match resp.and_then(|r| r.error_for_status()) {
                 Ok(response) => response,
                 Err(err) if matches!(err.status().map(|s| s.as_u16()), Some(404)) => {
-                    return Err(PackageError::NotFound(spec.clone()));
+                    return Err(PackError::NotFound(spec.clone()));
                 }
-                Err(err) => return Err(PackageError::NetworkFailed(Some(eco_format!("{err}")))),
+                Err(err) => return Err(PackError::NetworkFailed(Some(eco_format!("{err}")))),
             };
 
             let decompressed = flate2::read::GzDecoder::new(reader);
@@ -48,12 +76,12 @@ impl<S: AsRef<str>> PackFs for HttpPack<S> {
             // .unpack(package_dir)
             // .map_err(|err| {
             //     std::fs::remove_dir_all(package_dir).ok();
-            //     PackageError::MalformedArchive(Some(eco_format!("{err}")))
+            //     PackError::MalformedArchive(Some(eco_format!("{err}")))
             // })
 
             tarbar.read_all(f)
         })
-        .ok_or_else(|| PackageError::Other(Some(eco_format!("cannot spawn http thread"))))?
+        .ok_or_else(|| PackError::Other(Some(eco_format!("cannot spawn http thread"))))?
     }
 }
 

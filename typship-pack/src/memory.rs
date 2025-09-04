@@ -2,6 +2,8 @@ use std::{collections::HashMap, io::Cursor};
 
 use ecow::EcoString;
 
+use crate::error::{other, other_io};
+
 use super::*;
 
 /// A package in the directory.
@@ -21,8 +23,8 @@ impl MapPack {
 impl PackFs for MapPack {
     fn read_all(
         &mut self,
-        f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
-    ) -> PackageResult<()> {
+        f: &mut (dyn FnMut(&str, PackFile) -> PackResult<()> + Send + Sync),
+    ) -> PackResult<()> {
         for (path, data) in self.files.iter() {
             let pack_file = PackFile::Data(Cursor::new(data.clone()));
             f(path, pack_file)?;

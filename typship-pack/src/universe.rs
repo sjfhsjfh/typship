@@ -1,5 +1,7 @@
 use super::*;
-use crate::registry::DEFAULT_REGISTRY;
+
+/// The default Typst registry.
+const DEFAULT_REGISTRY: &str = "https://packages.typst.org";
 
 /// A package in the universe registry.
 #[derive(Debug, Clone)]
@@ -18,8 +20,8 @@ impl UniversePack {
 impl PackFs for UniversePack {
     fn read_all(
         &mut self,
-        f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
-    ) -> PackageResult<()> {
+        f: &mut (dyn FnMut(&str, PackFile) -> PackResult<()> + Send + Sync),
+    ) -> PackResult<()> {
         let spec = &self.specifier;
         assert_eq!(spec.namespace, "preview");
 

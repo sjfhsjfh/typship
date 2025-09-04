@@ -1,16 +1,11 @@
 //! A bundle that is modifiable
 
 use core::fmt;
-use std::fmt::Display;
 use std::io::{self, Read};
 use std::path::Path;
 use std::sync::Arc;
 
-use ecow::{EcoVec, eco_format};
-use tinymist_std::{ImmutBytes, ImmutPath};
-use typst::diag::{PackageError, PackageResult};
-use typst::syntax::package::{PackageSpec, VersionlessPackageSpec};
-
+mod error;
 #[cfg(feature = "fs-pack")]
 mod fs;
 #[cfg(feature = "gitcl-pack")]
@@ -25,6 +20,11 @@ mod tarball;
 #[cfg(feature = "universe-pack")]
 mod universe;
 
+use ecow::EcoVec;
+use error::{PackError, PackResult};
+use tinymist_std::{ImmutBytes, ImmutPath};
+use typst_syntax::package::{PackageSpec, VersionlessPackageSpec};
+
 #[cfg(feature = "fs-pack")]
 pub use fs::*;
 #[cfg(feature = "gitcl-pack")]
@@ -38,6 +38,8 @@ pub use release::*;
 pub use tarball::*;
 #[cfg(feature = "universe-pack")]
 pub use universe::*;
+
+use crate::error::unsupported;
 
 /// The pack file is the knownn file type in the package.
 pub enum PackFile<'a> {
@@ -69,8 +71,8 @@ pub trait PackFs: fmt::Debug {
     /// Read files from the package.
     fn read_all(
         &mut self,
-        f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
-    ) -> PackageResult<()>;
+        f: &mut (dyn FnMut(&str, PackFile) -> PackResult<()> + Send + Sync),
+    ) -> PackResult<()>;
     /// Read a file from the package.
     fn read(&self, _path: &str) -> io::Result<PackFile<'_>> {
         Err(unsupported())
@@ -114,20 +116,4 @@ pub trait CloneIntoPack: fmt::Debug {
 pub struct Package {
     /// The underlying pack.
     pub pack: Arc<dyn Pack + Send + Sync>,
-}
-
-fn unsupported() -> io::Error {
-    io::Error::new(io::ErrorKind::Unsupported, "unsupported operation")
-}
-
-fn malform(e: io::Error) -> PackageError {
-    PackageError::MalformedArchive(Some(eco_format!("{e:?}")))
-}
-
-fn other_io(e: impl Display) -> io::Error {
-    io::Error::other(e.to_string())
-}
-
-fn other(e: impl Display) -> PackageError {
-    PackageError::Other(Some(eco_format!("{e}")))
 }

@@ -16,8 +16,8 @@ pub struct GitHubReleasePack {
 impl PackFs for GitHubReleasePack {
     fn read_all(
         &mut self,
-        f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
-    ) -> PackageResult<()> {
+        f: &mut (dyn FnMut(&str, PackFile) -> PackResult<()> + Send + Sync),
+    ) -> PackResult<()> {
         let url = format!(
             "https://api.github.com/repos/{}/releases/latest/{}",
             self.repo, self.name,

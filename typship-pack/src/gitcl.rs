@@ -1,5 +1,7 @@
 use ecow::EcoString;
 
+use crate::error::other;
+
 use super::*;
 
 /// A package in the git.
@@ -27,8 +29,8 @@ impl<P: AsRef<str>> fmt::Debug for GitClPack<P> {
 impl<P: AsRef<str>> PackFs for GitClPack<P> {
     fn read_all(
         &mut self,
-        f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
-    ) -> PackageResult<()> {
+        f: &mut (dyn FnMut(&str, PackFile) -> PackResult<()> + Send + Sync),
+    ) -> PackResult<()> {
         let temp_dir = std::env::temp_dir();
         let temp_dir = temp_dir.join("tinymist/package-gitcl");
 

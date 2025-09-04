@@ -1,5 +1,7 @@
 use std::{fs::File, io::Write};
 
+use crate::error::{other, other_io};
+
 use super::*;
 
 /// A package in the directory.
@@ -25,8 +27,8 @@ impl<P: AsRef<Path>> fmt::Debug for DirPack<P> {
 impl<P: AsRef<Path>> PackFs for DirPack<P> {
     fn read_all(
         &mut self,
-        f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
-    ) -> PackageResult<()> {
+        f: &mut (dyn FnMut(&str, PackFile) -> PackResult<()> + Send + Sync),
+    ) -> PackResult<()> {
         self.filter(|_| true).read_all(f)
     }
 }
@@ -82,8 +84,8 @@ impl<S: AsRef<Path>, F> fmt::Debug for FilterDirPack<'_, S, F> {
 impl<Src: AsRef<Path>, F: Fn(&str) -> bool + Send + Sync> PackFs for FilterDirPack<'_, Src, F> {
     fn read_all(
         &mut self,
-        f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
-    ) -> PackageResult<()> {
+        f: &mut (dyn FnMut(&str, PackFile) -> PackResult<()> + Send + Sync),
+    ) -> PackResult<()> {
         let w = walkdir::WalkDir::new(self.path.as_ref())
             .follow_links(true)
             .into_iter()
