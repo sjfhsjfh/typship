@@ -45,7 +45,7 @@ async fn main() {
     let current_dir = std::env::current_dir().expect("Failed to get the current directory");
 
     if let Err(e) = match_cmd(&current_dir, &cli).await {
-        error!("{:?}", e);
+        error!("{e:?}");
     }
 }
 
