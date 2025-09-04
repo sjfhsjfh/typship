@@ -2,6 +2,7 @@ use clap::Subcommand;
 
 pub mod check;
 pub mod clean;
+pub mod copy;
 pub mod dev;
 pub mod download;
 pub mod exclude;
@@ -16,7 +17,7 @@ pub(crate) enum Commands {
     Check(check::CheckArgs),
     Clean(clean::CleanArgs),
     Dev(dev::DevArgs),
-    Copy(download::CopyArgs),
+    Copy(copy::CopyArgs),
     Download(download::DownloadArgs),
     Exclude(exclude::ExcludeArgs),
     Init(init::InitArgs),

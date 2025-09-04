@@ -50,6 +50,12 @@ pub fn typst_local_dir() -> PathBuf {
         .join(typst_kit::package::DEFAULT_PACKAGES_SUBDIR)
 }
 
+pub fn typst_cache_dir() -> PathBuf {
+    dirs::cache_dir()
+        .expect("Failed to get the cache directory")
+        .join(typst_kit::package::DEFAULT_PACKAGES_SUBDIR)
+}
+
 pub fn temp_dir() -> PathBuf {
     let mut path = env::temp_dir();
     path.push(env!("CARGO_PKG_NAME"));

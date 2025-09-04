@@ -1,11 +1,9 @@
 use std::fs;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use anyhow::{bail, Result};
 use clap::Parser;
 use log::info;
-use tinymist_package::{CloneIntoPack, DirPack, GitClPack, PackageSpec, UniversePack};
 
 use crate::commands::install::{install, InstallArgs};
 use crate::utils::temp_subdir;
@@ -63,7 +61,7 @@ fn temp_jobs(temp_dir: PathBuf, repo: &str, checkout: Option<&str>, namespace: &
     }
 
     if let Some(checkout) = checkout {
-        info!("Checking out to {}...", checkout);
+        info!("Checking out to {checkout}...");
         let status = std::process::Command::new("git")
             .arg("checkout")
             .arg(checkout)
@@ -82,51 +80,5 @@ fn temp_jobs(temp_dir: PathBuf, repo: &str, checkout: Option<&str>, namespace: &
             target: namespace.to_string(),
         },
     )?;
-    Ok(())
-}
-
-#[derive(Parser)]
-/// Copy
-pub struct CopyArgs {
-    /// Git repository URL
-    pub source: String,
-
-    #[arg(short, long, default_value = "local")]
-    /// Namespace to install the package to (without the `@` prefix)
-    pub namespace: String,
-}
-
-enum PackKind {
-    Git,
-    Universe(PackageSpec),
-}
-
-pub fn copy(args: &CopyArgs) -> anyhow::Result<()> {
-    println!("Copying {} to @{}", args.source, args.namespace);
-
-    let mut dst = DirPack::new("target/zebraw");
-
-    let inferred = if args.source.starts_with("git@") {
-        PackKind::Git
-    } else if let Some(spec) = args.source.strip_prefix("pkg:") {
-        PackKind::Universe(
-            PackageSpec::from_str(spec)
-                .map_err(|e| anyhow::anyhow!("Invalid package spec: {}", e))?,
-        )
-    } else {
-        bail!("cannot infer the package type from the source");
-    };
-
-    match inferred {
-        PackKind::Git => {
-            let mut src = GitClPack::new(args.namespace.as_str().into(), args.source.clone());
-            dst.clone_into_pack(&mut src)?;
-        }
-        PackKind::Universe(spec) => {
-            let mut src = UniversePack::new(spec);
-            dst.clone_into_pack(&mut src)?;
-        }
-    }
-
     Ok(())
 }

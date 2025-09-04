@@ -35,6 +35,7 @@ typst-syntax = "0.12.0"
 url = "2.5.4"
 whoami = "1.5.2"
 tinymist-package = { version = "0.13", features = ["system"] }
+reqwest = { version = "0.12.23", default-features = false, features = ["rustls-tls"] }
 
 # todo: upgrade
 # typst-upgrade = {git = "https://github.com/Coekjan/typst-upgrade"}
