@@ -3,8 +3,9 @@ use std::{io::Read, path::PathBuf, str::FromStr};
 use anyhow::bail;
 use clap::Parser;
 use log::info;
-use tinymist_package::{CloneIntoPack, DirPack, GitClPack, MapPack, PackageSpec, TarballPack, UniversePack};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use typship_pack::{CloneIntoPack, DirPack, GitClPack, MapPack, TarballPack, UniversePack};
+use typst_syntax::package::PackageSpec;
 use url::Url;
 
 use crate::utils::{typst_cache_dir, typst_local_dir};
@@ -32,22 +33,22 @@ fn decompress_gzip(data: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
     Ok(decompressed)
 }
 
-/// TODO: remove this after a `CloneIntoPack` implementation from tinymist_package is available
+/// TODO: remove this after a `CloneIntoPack` implementation from typship_pack is available
 fn construct_tarball(pack: &mut MapPack) -> Result<Vec<u8>, anyhow::Error> {
-    fn custom(err: impl std::error::Error) -> tinymist_package::PackageError {
-        tinymist_package::PackageError::Other(Some(format!("{err}").into()))
+    fn custom(err: impl std::error::Error) -> typship_pack::PackError {
+        typship_pack::PackError::Other(Some(format!("{err}").into()))
     }
     let mut tar_data = vec![];
     let mut tar_builder = tar::Builder::new(&mut tar_data);
-    tinymist_package::PackFs::read_all(pack, &mut |path, file| {
+    typship_pack::PackFs::read_all(pack, &mut |path, file| {
         let mut header = tar::Header::new_gnu();
         let data = match file {
-            tinymist_package::PackFile::Read(mut reader) => {
+            typship_pack::PackFile::Read(mut reader) => {
                 let mut dst = Vec::new();
                 std::io::copy(&mut reader, &mut dst).map_err(custom)?;
                 dst
             }
-            tinymist_package::PackFile::Data(data) => data.into_inner().to_vec(),
+            typship_pack::PackFile::Data(data) => data.into_inner().to_vec(),
         };
         header.set_size(data.len() as u64);
         header.set_cksum();

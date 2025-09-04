@@ -21,10 +21,10 @@ mod tarball;
 mod universe;
 
 use ecow::EcoVec;
-use error::{PackError, PackResult};
 use tinymist_std::{ImmutBytes, ImmutPath};
 use typst_syntax::package::{PackageSpec, VersionlessPackageSpec};
 
+pub use error::{PackError, PackResult};
 #[cfg(feature = "fs-pack")]
 pub use fs::*;
 #[cfg(feature = "gitcl-pack")]

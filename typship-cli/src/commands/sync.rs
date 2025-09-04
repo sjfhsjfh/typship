@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::Result;
 use clap::Parser;
 use serde::de::IgnoredAny;
-use tinymist_package::PackageSpec;
+use typst_syntax::package::PackageSpec;
 
 use crate::utils::read_manifest;
 
