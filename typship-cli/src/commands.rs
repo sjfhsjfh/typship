@@ -13,7 +13,7 @@ pub mod publish;
 pub mod sync;
 
 #[derive(Subcommand)]
-pub(crate) enum Commands {
+pub enum Commands {
     Check(check::CheckArgs),
     Clean(clean::CleanArgs),
     Dev(dev::DevArgs),

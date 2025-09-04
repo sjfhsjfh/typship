@@ -1,4 +1,3 @@
-use std::env;
 use std::io::Write;
 use std::path::Path;
 
@@ -12,10 +11,10 @@ mod model;
 mod regs;
 mod utils;
 
-pub const NAME: &str = env!("CARGO_PKG_NAME");
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+const NAME: &str = env!("CARGO_PKG_NAME");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub const ABOUT: &str = "A simple package manager for Typst";
+const ABOUT: &str = "A simple package manager for Typst";
 
 #[derive(Parser)]
 #[command(name = NAME)]

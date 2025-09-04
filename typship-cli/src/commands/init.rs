@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::Parser;
 use dialoguer::{Confirm, Input, MultiSelect};
 use log::info;

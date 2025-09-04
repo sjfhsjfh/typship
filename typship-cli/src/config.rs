@@ -1,13 +1,12 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use log::error;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::utils::load_config;
 
-pub static CONFIG: Lazy<Arc<Mutex<Config>>> = Lazy::new(|| {
+pub static CONFIG: LazyLock<Arc<Mutex<Config>>> = LazyLock::new(|| {
     Mutex::new(
         load_config()
             .map_err(|e| {

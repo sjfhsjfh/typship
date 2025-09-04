@@ -1,6 +1,7 @@
 pub mod walkers;
 
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 use std::{env, fs};
 
 use anyhow::{Context, Result};
@@ -10,14 +11,22 @@ use typst_syntax::package::PackageManifest;
 
 use crate::config::Config;
 
-pub fn config_dir() -> PathBuf {
-    dirs::config_dir()
-        .expect("Failed to get the config directory")
-        .join(env!("CARGO_PKG_NAME"))
+const DEFAULT_PACKAGES_SUBDIR: &str = "typst/packages"; // from typst-kit
+
+pub fn config_dir() -> &'static Path {
+    static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
+        dirs::config_dir()
+            .expect("Failed to get the config directory")
+            .join(env!("CARGO_PKG_NAME"))
+    });
+
+    CONFIG_DIR.as_path()
 }
 
-pub fn config_file() -> PathBuf {
-    config_dir().join("config.toml")
+pub fn config_file() -> &'static Path {
+    static CONFIG_PATH: LazyLock<PathBuf> = LazyLock::new(|| config_dir().join("config.toml"));
+
+    CONFIG_PATH.as_path()
 }
 
 /// Should always return a valid config
@@ -47,13 +56,13 @@ pub fn save_config(config: &Config) -> Result<()> {
 pub fn typst_local_dir() -> PathBuf {
     dirs::data_dir()
         .expect("Failed to get the data directory")
-        .join(typst_kit::package::DEFAULT_PACKAGES_SUBDIR)
+        .join(DEFAULT_PACKAGES_SUBDIR)
 }
 
 pub fn typst_cache_dir() -> PathBuf {
     dirs::cache_dir()
         .expect("Failed to get the cache directory")
-        .join(typst_kit::package::DEFAULT_PACKAGES_SUBDIR)
+        .join(DEFAULT_PACKAGES_SUBDIR)
 }
 
 pub fn temp_dir() -> PathBuf {
@@ -63,9 +72,10 @@ pub fn temp_dir() -> PathBuf {
 }
 
 pub fn temp_subdir(id: &str) -> PathBuf {
-    let mut path = temp_dir();
+    let mut path = env::temp_dir();
     let hash = format!("{:x}", Sha256::digest(id.as_bytes()));
-    path.push(hash);
+    let truncated_hash = &hash[0..16];
+    path.push(format!("{}-{}", env!("CARGO_PKG_NAME"), truncated_hash));
     path
 }
 

@@ -1,17 +1,21 @@
 /// Typst Official Package Registry: Universeuse anyhow::anyhow;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::{LazyLock, OnceLock};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
+use clap::ValueEnum;
 use crossterm::style::Stylize;
 use dialoguer::{Confirm, Input};
 use futures_util::TryStreamExt;
 use log::{info, warn};
 use octocrab::models::pulls::PullRequest;
 use octocrab::models::repos::{ContentItems, Object};
-use octocrab::{params, Octocrab, Page};
-use once_cell::sync::{Lazy, OnceCell};
+use octocrab::{Octocrab, Page, params};
+use regex::Regex;
 use secrecy::SecretString;
+use std::process::Command;
+use tempfile::TempDir;
 use typst_syntax::package::{PackageManifest, PackageVersion};
 
 use crate::config::CONFIG;
@@ -24,9 +28,10 @@ pub const UNIVERSE_REPO_NAME: &str = "packages";
 pub const UNIVERSE_REPO_OWNER: &str = "typst";
 
 /// Unauthorized client for public access
-pub static PUBLIC_CLIENT: Lazy<Octocrab> = Lazy::new(|| Octocrab::builder().build().unwrap());
+pub static PUBLIC_CLIENT: LazyLock<Octocrab> =
+    LazyLock::new(|| Octocrab::builder().build().unwrap());
 
-pub static AUTH_CLIENT: OnceCell<Octocrab> = OnceCell::new();
+pub static AUTH_CLIENT: OnceLock<Octocrab> = OnceLock::new();
 
 pub fn get_authenticated_client() -> Result<&'static Octocrab> {
     // TODO: better secret management
@@ -92,7 +97,11 @@ pub fn login() -> Result<()> {
         return Ok(());
     }
     let token = dialoguer::Password::new()
-        .with_prompt("Enter your GitHub personal access token (use `fine-grained token` instead of `tokens (classic)`)")
+        .with_prompt(r#"
+Please create and get a `fine-grained token` from https://github.com/settings/personal-access-tokens/new.
+You must grant the "Contents", "Workflows", and "Pull requests" permission of the typst/packages forks to the token.
+Enter your GitHub personal access token
+"#.trim())
         .interact()?;
     CONFIG.try_lock()?.tokens.universe = Some(token);
     if let Ok(cfg) = CONFIG.try_lock() {
@@ -100,14 +109,22 @@ pub fn login() -> Result<()> {
     } else {
         anyhow::bail!("Failed to save the configuration file");
     }
-    info!(
-        "Your token has been saved to {}",
-        config_file().to_string_lossy()
-    );
+    info!("Your token has been saved to {}", config_file().display());
     Ok(())
 }
 
-pub async fn publish(manifest: &PackageManifest, package_dir: &Path, dry_run: bool) -> Result<()> {
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum UploadMethod {
+    Sparse,
+    Api,
+}
+
+pub async fn publish(
+    manifest: &PackageManifest,
+    package_dir: &Path,
+    dry_run: bool,
+    upload_method: UploadMethod,
+) -> Result<()> {
     // TODO: check if exist in package repo(name), check pr
     info!("Checking the packages in the official packages repo...");
     let mut is_new_package = true;
@@ -139,33 +156,32 @@ pub async fn publish(manifest: &PackageManifest, package_dir: &Path, dry_run: bo
         if let Some(submission) = pr
             .title
             .and_then(|t| PackageSubmission::try_from_title(&t).ok())
+            && submission.name == manifest.package.name
         {
-            if submission.name == manifest.package.name {
-                match submission.version.cmp(&manifest.package.version) {
-                    std::cmp::Ordering::Greater => {
-                        bail!(
-                            "Package version `{}`(newer) is already submitted in PR #{}: {}",
-                            submission.version,
-                            pr.number,
-                            pr.url.underlined()
-                        );
-                    }
-                    std::cmp::Ordering::Equal => {
-                        bail!(
-                            "Package version `{}`(current) is already submitted in PR #{}: {}",
-                            submission.version,
-                            pr.number,
-                            pr.url.underlined()
-                        );
-                    }
-                    std::cmp::Ordering::Less => {
-                        warn!(
-                            "Package version `{}`(older) is already submitted in PR #{}: {}",
-                            submission.version,
-                            pr.number,
-                            pr.url.underlined()
-                        );
-                    }
+            match submission.version.cmp(&manifest.package.version) {
+                std::cmp::Ordering::Greater => {
+                    bail!(
+                        "Package version `{}`(newer) is already submitted in PR #{}: {}",
+                        submission.version,
+                        pr.number,
+                        pr.url.underlined()
+                    );
+                }
+                std::cmp::Ordering::Equal => {
+                    bail!(
+                        "Package version `{}`(current) is already submitted in PR #{}: {}",
+                        submission.version,
+                        pr.number,
+                        pr.url.underlined()
+                    );
+                }
+                std::cmp::Ordering::Less => {
+                    warn!(
+                        "Package version `{}`(older) is already submitted in PR #{}: {}",
+                        submission.version,
+                        pr.number,
+                        pr.url.underlined()
+                    );
                 }
             }
         }
@@ -194,7 +210,7 @@ pub async fn publish(manifest: &PackageManifest, package_dir: &Path, dry_run: bo
         .allow_empty(false)
         .default(UNIVERSE_REPO_NAME.into())
         .interact_text()?;
-    let my_fork = client.repos(&me.login, my_repo);
+    let my_fork = client.repos(&me.login, &my_repo);
     let parent = my_fork.get().await?.parent;
     if let Some(p) = parent {
         if p.name != UNIVERSE_REPO_NAME
@@ -288,23 +304,45 @@ pub async fn publish(manifest: &PackageManifest, package_dir: &Path, dry_run: bo
             bail!("Aborted");
         }
 
-        // TODO: multi-threading?
-        for file in files {
-            let content = std::fs::read(package_dir.join(&file))?;
-            my_fork
-                .create_file(
-                    submission
-                        .repo_path()
-                        .join(&file)
-                        .to_string_lossy()
-                        .into_owned(),
-                    format!("[Typship] Add {}", file.display()),
-                    &content,
+        match upload_method {
+            UploadMethod::Sparse => {
+                let use_sparse_checkout = check_git_version().unwrap_or(false);
+                if use_sparse_checkout {
+                    upload_files_sparse_checkout(
+                        client,
+                        &me.login,
+                        &my_repo,
+                        &submission,
+                        package_dir,
+                        &files,
+                    )
+                    .await?;
+                } else {
+                    info!(
+                        "Git version does not support sparse-checkout, automatically switch to api upload method."
+                    );
+                    upload_files_api(
+                        client,
+                        &me.login,
+                        &my_repo,
+                        &submission,
+                        package_dir,
+                        &files,
+                    )
+                    .await?;
+                }
+            }
+            UploadMethod::Api => {
+                upload_files_api(
+                    client,
+                    &me.login,
+                    &my_repo,
+                    &submission,
+                    package_dir,
+                    &files,
                 )
-                .branch(submission.branch_name())
-                .send()
-                .await
-                .map(|_| info!("Uploaded: {}", file.display()))?;
+                .await?;
+            }
         }
     } else {
         info!("Dry run: file upload skipped");
@@ -408,4 +446,202 @@ impl SubmissionMessage {
             if has_template { template } else { "" }
         )
     }
+}
+
+fn check_git_version() -> Result<bool> {
+    let output = Command::new("git").args(["--version"]).output()?;
+
+    if !output.status.success() {
+        bail!("Failed to check git version");
+    }
+
+    let version_str = String::from_utf8_lossy(&output.stdout);
+    let version_regex = Regex::new(r"git version (\d+)\.(\d+)\.(\d+).*")?;
+
+    if let Some(captures) = version_regex.captures(&version_str) {
+        let major: u32 = captures[1].parse()?;
+        let minor: u32 = captures[2].parse()?;
+
+        // sparse-checkout --cone requires Git 2.25+
+        Ok(major > 2 || (major == 2 && minor >= 25))
+    } else {
+        warn!("Could not parse git version, falling back to API upload");
+        Ok(false)
+    }
+}
+
+async fn upload_files_api(
+    client: &Octocrab,
+    user_login: &str,
+    repo_name: &str,
+    submission: &PackageSubmission,
+    package_dir: &Path,
+    files: &[PathBuf],
+) -> Result<()> {
+    for file in files {
+        let content = std::fs::read(package_dir.join(file))?;
+        client
+            .repos(user_login, repo_name)
+            .create_file(
+                submission
+                    .repo_path()
+                    .join(file)
+                    .to_string_lossy()
+                    .into_owned(),
+                format!("[Typship] Add {}", file.display()),
+                &content,
+            )
+            .branch(submission.branch_name())
+            .send()
+            .await
+            .map(|_| info!("Uploaded: {}", file.display()))?;
+    }
+    Ok(())
+}
+
+async fn upload_files_sparse_checkout(
+    client: &Octocrab,
+    user_login: &str,
+    repo_name: &str,
+    submission: &PackageSubmission,
+    package_dir: &Path,
+    files: &[PathBuf],
+) -> Result<()> {
+    let typst_toml_content = std::fs::read(package_dir.join("typst.toml"))?;
+
+    client
+        .repos(user_login, repo_name)
+        .create_file(
+            submission
+                .repo_path()
+                .join("typst.toml")
+                .to_string_lossy()
+                .into_owned(),
+            "[Typship] Initialize package version directory".to_string(),
+            &typst_toml_content,
+        )
+        .branch(submission.branch_name())
+        .send()
+        .await?;
+
+    let temp_dir = TempDir::new()?;
+    let temp_path = temp_dir.path();
+
+    let fork_url = format!("https://github.com/{user_login}/{repo_name}.git");
+    let target_path = submission.repo_path();
+
+    let output = Command::new("git")
+        .args([
+            "clone",
+            "--filter=blob:none",
+            "--no-checkout",
+            "--single-branch",
+            "--branch",
+            &submission.branch_name(),
+            &fork_url,
+            "repo",
+        ])
+        .current_dir(temp_path)
+        .output()?;
+
+    if !output.status.success() {
+        bail!(
+            "Failed to clone repository: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    let repo_path = temp_path.join("repo");
+
+    let output = Command::new("git")
+        .args(["sparse-checkout", "init", "--cone"])
+        .current_dir(&repo_path)
+        .output()?;
+
+    if !output.status.success() {
+        bail!(
+            "Failed to initialize sparse-checkout: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    let output = Command::new("git")
+        .args(["sparse-checkout", "set", &target_path.to_string_lossy()])
+        .current_dir(&repo_path)
+        .output()?;
+
+    if !output.status.success() {
+        bail!(
+            "Failed to set sparse-checkout patterns: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    let output = Command::new("git")
+        .args(["checkout"])
+        .current_dir(&repo_path)
+        .output()?;
+
+    if !output.status.success() {
+        bail!(
+            "Failed to checkout files: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    let local_target_dir = repo_path.join(&target_path);
+    std::fs::create_dir_all(&local_target_dir)?;
+
+    for file in files {
+        let src_path = package_dir.join(file);
+        let dst_path = local_target_dir.join(file);
+
+        if let Some(parent) = dst_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        std::fs::copy(&src_path, &dst_path)?;
+    }
+
+    let output = Command::new("git")
+        .args(["add", "."])
+        .current_dir(&repo_path)
+        .output()?;
+
+    if !output.status.success() {
+        bail!(
+            "Failed to add files to git: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    let commit_message = format!(
+        "[Typship] Add package {}:{}",
+        submission.name, submission.version
+    );
+    let output = Command::new("git")
+        .args(["commit", "-m", &commit_message])
+        .current_dir(&repo_path)
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if !stderr.contains("nothing to commit") {
+            bail!("Failed to commit files: {}", stderr);
+        }
+    }
+
+    let output = Command::new("git")
+        .args(["push", "origin", &submission.branch_name()])
+        .current_dir(&repo_path)
+        .output()?;
+
+    if !output.status.success() {
+        bail!(
+            "Failed to push to remote: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    Ok(())
 }
