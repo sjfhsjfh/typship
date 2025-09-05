@@ -1,28 +1,43 @@
-use std::{io::Read, path::PathBuf, str::FromStr};
+use std::{io::Read, path::PathBuf, str::FromStr, sync::Arc};
 
 use anyhow::bail;
 use clap::Parser;
+use ecow::eco_format;
 use log::info;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use typship_pack::{CloneIntoPack, DirPack, GitClPack, MapPack, TarballPack, UniversePack};
-use typst_syntax::package::PackageSpec;
+use typship_pack::{
+    CloneFromPack, DirPack, GitClPack, MapPack, Pack, PackError, PartialPackageSpec,
+    PartialStoragePack, TarballPack, UniversePack,
+};
+use typst_syntax::package::{PackageManifest, PackageSpec};
 use url::Url;
 
 use crate::utils::{typst_cache_dir, typst_local_dir};
 
 const DETACHED_NAMESPACE: &str = "DETACHED";
 
-fn download(url: &Url) -> Result<Vec<u8>, anyhow::Error> {
-    let resp = reqwest::blocking::get(url.clone())
-        .map_err(|e| anyhow::anyhow!("Failed to download file: {}", e))?;
-    if !resp.status().is_success() {
-        bail!("Failed to download file: HTTP {}", resp.status());
+fn download(url: &Url) -> Result<Vec<u8>, PackError> {
+    let resp = reqwest::blocking::get(url.clone()).map_err(|e| {
+        PackError::NetworkFailed(Some(eco_format!("Failed to get response: {e:?}")))
+    })?;
+    match resp.status() {
+        code if !code.is_success() => {
+            return Err(PackError::NetworkFailed(Some(eco_format!(
+                "Failed to download file: HTTP {}",
+                resp.status()
+            ))));
+        }
+        _ => {}
     }
     let data = resp
         .bytes()
-        .map_err(|e| anyhow::anyhow!("Failed to read response: {}", e))?
+        .map_err(|e| PackError::Other(Some(eco_format!("Failed to read response: {}", e))))?
         .to_vec();
     Ok(data)
+}
+
+fn gzip_reader(r: impl Read) -> impl Read {
+    flate2::read::GzDecoder::new(r)
 }
 
 fn decompress_gzip(data: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
@@ -58,6 +73,164 @@ fn construct_tarball(pack: &mut MapPack) -> Result<Vec<u8>, anyhow::Error> {
         Ok(())
     })?;
     Ok(tar_builder.into_inner().map_err(custom)?.to_vec())
+}
+
+fn pack_from_http_url(url: &Url) -> Result<Arc<dyn Pack>, PackError> {
+    match url.path() {
+        tarball if tarball.ends_with(".tar") => {
+            let tarball = download(url)?;
+            Ok(Arc::new(TarballPack::new(std::io::Cursor::new(tarball))))
+        }
+        gz if gz.ends_with(".tar.gz") || gz.ends_with(".tgz") => {
+            let tar_gz = download(url)?;
+            Ok(Arc::new(TarballPack::new(gzip_reader(
+                std::io::Cursor::new(tar_gz),
+            ))))
+        }
+        git if git.ends_with(".git") => Ok(Arc::new(GitClPack::new(
+            DETACHED_NAMESPACE.into(),
+            url.clone(),
+        ))),
+        _ => Err(PackError::Other(Some(eco_format!(
+            "Cannot infer pack type from URL: {url}",
+        )))),
+    }
+}
+
+fn pack_from_ssh_url(url: &Url) -> Result<Arc<dyn Pack>, PackError> {
+    if url.path().ends_with(".git") {
+        Ok(Arc::new(GitClPack::new(
+            DETACHED_NAMESPACE.into(),
+            url.clone(),
+        )))
+    } else {
+        Err(PackError::Other(Some(eco_format!(
+            "Cannot infer pack type from SSH URL: {url}",
+        ))))
+    }
+}
+
+fn pack_from_local_url(
+    url: &Url,
+    src_spec: PartialPackageSpec,
+) -> Result<Arc<dyn Pack>, PackError> {
+    let storage_path = match url.scheme() {
+        "data" => typst_local_dir(),
+        "cache" => typst_cache_dir(),
+        _ => {
+            return Err(PackError::Other(Some(eco_format!(
+                "Unexpected local URL scheme: {}",
+                url.scheme()
+            ))));
+        }
+    };
+    let partial_spec = match url.path().strip_prefix('@') {
+        Some(rest) => {
+            let mut parts = rest.splitn(3, '/');
+            PartialPackageSpec {
+                namespace: parts.next().map(|s| s.to_string()),
+                name: parts.next().map(|s| s.to_string()),
+                version: parts.next().map(|s| s.to_string()),
+            }
+        }
+        None => Default::default(),
+    };
+
+    if let Some(dir_pack) = PartialStoragePack::new(storage_path)
+        .with_partial_spec(partial_spec)
+        .with_partial_spec(src_spec)
+        .ready()
+    {
+        Ok(Arc::new(dir_pack))
+    } else {
+        Err(PackError::Other(Some(eco_format!(
+            "Cannot infer pack path from local URL: {url}",
+        ))))
+    }
+}
+
+fn pack_from_universe_url(
+    url: &Url,
+    src_spec: Option<&PackageSpec>,
+) -> Result<Arc<dyn Pack>, PackError> {
+    let (part_namespace, part_package, part_version) = match url.path().strip_prefix('@') {
+        Some(rest) => {
+            let mut parts = rest.splitn(3, '/');
+            (
+                parts.next().map(|s| s.to_string()),
+                parts.next().map(|s| s.to_string()),
+                parts.next().map(|s| s.to_string()),
+            )
+        }
+        None => (None, None, None),
+    };
+    let (src_namespace, src_package, src_version) = if let Some(spec) = src_spec {
+        (
+            Some(spec.namespace.to_string()),
+            Some(spec.name.to_string()),
+            Some(spec.version.to_string()),
+        )
+    } else {
+        (None, None, None)
+    };
+    let spec = PackageSpec {
+        namespace: part_namespace
+            .or(src_namespace)
+            .ok_or_else(|| {
+                PackError::Other(Some(eco_format!(
+                    "Missing namespace, cannot infer from given URLs"
+                )))
+            })?
+            .into(),
+        name: part_package
+            .or(src_package)
+            .ok_or_else(|| {
+                PackError::Other(Some(eco_format!(
+                    "Missing package name, cannot infer from given URLs"
+                )))
+            })?
+            .into(),
+        version: part_version
+            .or(src_version)
+            .ok_or_else(|| {
+                PackError::Other(Some(eco_format!(
+                    "Missing version, cannot infer from given URLs"
+                )))
+            })?
+            .parse()
+            .map_err(|e| {
+                PackError::Other(Some(eco_format!("Invalid version in universe URL: {e}")))
+            })?,
+    };
+    Ok(Arc::new(UniversePack::new(spec)))
+}
+
+fn parse_url(url: &str, src_spec: PartialPackageSpec) -> Result<Arc<dyn Pack>, PackError> {
+    let url = Url::parse(url)
+        .map_err(|e| PackError::Other(Some(format!("Invalid URL: {}", e).into())))?;
+    let scheme = url.scheme();
+    match scheme {
+        "git" => Ok(Arc::new(GitClPack::new(
+            DETACHED_NAMESPACE.into(),
+            url.clone(),
+        ))),
+        // TODO: file can be .git
+        "file" => Ok(Arc::new(DirPack::new(PathBuf::from(
+            url.to_file_path().map_err(|_| {
+                PackError::Other(Some(eco_format!(
+                    "Invalid file URL `{url}`: cannot convert to file path"
+                )))
+            })?,
+        )))),
+        "http" | "https" => pack_from_http_url(&url),
+        "ssh" => pack_from_ssh_url(&url),
+        // Special schemes
+        "data" | "cache" => pack_from_local_url(&url, src_spec),
+        "universe" => todo!(),
+        unknown => Err(PackError::Other(Some(eco_format!(
+            "Unsupported URL scheme: {unknown}"
+        )))),
+    }
 }
 
 #[derive(Parser)]
@@ -173,16 +346,16 @@ impl PackKind {
         let mut pack = MapPack::default();
         match self {
             PackKind::Git { git } => {
-                pack.clone_into_pack(&mut GitClPack::new(DETACHED_NAMESPACE.into(), git))?;
+                pack.clone_from_pack(&mut GitClPack::new(DETACHED_NAMESPACE.into(), git))?;
             }
             PackKind::Local { path } => {
-                pack.clone_into_pack(&mut DirPack::new(path))?;
+                pack.clone_from_pack(&mut DirPack::new(path))?;
             }
             PackKind::Universe { spec } => {
-                pack.clone_into_pack(&mut UniversePack::new(spec))?;
+                pack.clone_from_pack(&mut UniversePack::new(spec))?;
             }
             PackKind::TarStream { data } => {
-                pack.clone_into_pack(&mut TarballPack::new(std::io::Cursor::new(data)))?;
+                pack.clone_from_pack(&mut TarballPack::new(std::io::Cursor::new(data)))?;
             }
             PackKind::Npm { spec: _ } => todo!(),
         }
@@ -195,17 +368,34 @@ pub async fn copy(args: &CopyArgs) -> anyhow::Result<()> {
         "-" => {
             let mut data = vec![];
             tokio::io::stdin().read_to_end(&mut data).await?;
-            PackKind::TarStream { data }
+            Arc::new(TarballPack::new(std::io::Cursor::new(data)))
         }
-        rest => PackKind::try_from(rest)?,
+        rest => parse_url(&args.source, Default::default())?,
     };
+    let src_spec = src
+        .read("typst.toml")
+        .ok()
+        .and_then(|file| {
+            // file
+            // PackageManifest
+            let mut buf = Vec::new();
+            file.read_to_end(&mut buf).ok()?;
+            toml::from_slice::<PackageManifest>(&buf)
+                .ok()
+                .map(|m| PartialPackageSpec {
+                    namespace: None,
+                    name: Some(m.package.name.to_string()),
+                    version: Some(m.package.version.to_string()),
+                })
+        })
+        .unwrap_or_default();
     let mut writing_to_stdout = false;
-    let dst: PackKind = match args.destination.as_str() {
+    let dst: Arc<dyn Pack> = match args.destination.as_str() {
         "-" => {
             writing_to_stdout = true;
-            PackKind::TarStream { data: vec![] }
+            Arc::new(TarballPack::new(std::io::Cursor::new(vec![])))
         }
-        rest => PackKind::try_from(rest)?,
+        rest => parse_url(&args.destination, src_spec)?,
     };
 
     if writing_to_stdout {
@@ -213,30 +403,10 @@ pub async fn copy(args: &CopyArgs) -> anyhow::Result<()> {
     }
 
     info!("Copying {} to {}", args.source, args.destination);
-
-    let mut pack = src.read_to_memory()?;
-
-    match dst {
-        PackKind::Git { git: _ } => {
-            bail!("Cannot write to a git repository");
-        }
-        PackKind::Local { path } => {
-            DirPack::new(path).clone_into_pack(&mut pack)?;
-        }
-        PackKind::Universe { spec: _ } => {
-            bail!("Cannot write to the universe");
-        }
-        PackKind::TarStream { data: _ } => {
-            if !writing_to_stdout {
-                bail!("Writing to a non-stdout tar stream is not supported");
-            }
-            let data = construct_tarball(&mut pack)?;
-            tokio::io::stdout().write_all(data.as_slice()).await?;
-        }
-        PackKind::Npm { spec: _ } => {
-            bail!("Cannot write to npm");
-        }
-    }
+    info!("Loading {} to memory...", args.source);
+    let mut pack = MapPack::default();
+    pack.clone_from_pack(Arc::make_mut(&mut src.clone()))?;
+    // dst.clone_from_memory_pack(pack)?;
 
     Ok(())
 }

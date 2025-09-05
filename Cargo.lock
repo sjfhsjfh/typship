@@ -2777,6 +2777,7 @@ dependencies = [
  "crossterm",
  "dialoguer",
  "dirs",
+ "ecow",
  "env_logger",
  "flate2",
  "futures-util",

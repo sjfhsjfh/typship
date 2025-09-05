@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use crate::error::malform;
 
 use super::*;

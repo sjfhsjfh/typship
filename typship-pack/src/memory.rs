@@ -37,8 +37,8 @@ impl PackFs for MapPack {
 impl Pack for MapPack {}
 impl PackExt for MapPack {}
 
-impl CloneIntoPack for MapPack {
-    fn clone_into_pack(&mut self, pack: &mut impl PackFs) -> std::io::Result<()> {
+impl CloneFromPack for MapPack {
+    fn clone_from_pack(&mut self, pack: &mut impl PackFs) -> std::io::Result<()> {
         pack.read_all(&mut |path, file| {
             let data = match file {
                 PackFile::Read(mut reader) => {

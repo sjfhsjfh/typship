@@ -106,9 +106,11 @@ pub trait PackExt: Pack {
 }
 
 /// The pack trait is used to hold a package.
-pub trait CloneIntoPack: fmt::Debug {
+pub trait CloneFromPack: fmt::Debug {
     /// Clones the pack into a new pack.
-    fn clone_into_pack(&mut self, pack: &mut impl PackFs) -> std::io::Result<()>;
+    fn clone_from_pack(&mut self, _: &mut impl PackFs) -> std::io::Result<()> {
+        Err(unsupported())
+    }
 }
 
 /// The package is a trait that can be used to create a package.

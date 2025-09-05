@@ -21,6 +21,7 @@ clap = { version = "4.5.23", features = ["derive"] }
 crossterm = { version = "0.28.1", default-features = false }
 dialoguer = "0.11.0"
 dirs.workspace = true
+ecow.workspace = true
 env_logger = "0.11.6"
 flate2.workspace = true
 futures-util = "0.3.31"
