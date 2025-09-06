@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{LazyLock, OnceLock};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::ValueEnum;
 use crossterm::style::Stylize;
 use dialoguer::{Confirm, Input};
@@ -11,7 +11,7 @@ use futures_util::TryStreamExt;
 use log::{info, warn};
 use octocrab::models::pulls::PullRequest;
 use octocrab::models::repos::{ContentItems, Object};
-use octocrab::{params, Octocrab, Page};
+use octocrab::{Octocrab, Page, params};
 use regex::Regex;
 use secrecy::SecretString;
 use std::process::Command;
@@ -156,33 +156,32 @@ pub async fn publish(
         if let Some(submission) = pr
             .title
             .and_then(|t| PackageSubmission::try_from_title(&t).ok())
+            && submission.name == manifest.package.name
         {
-            if submission.name == manifest.package.name {
-                match submission.version.cmp(&manifest.package.version) {
-                    std::cmp::Ordering::Greater => {
-                        bail!(
-                            "Package version `{}`(newer) is already submitted in PR #{}: {}",
-                            submission.version,
-                            pr.number,
-                            pr.url.underlined()
-                        );
-                    }
-                    std::cmp::Ordering::Equal => {
-                        bail!(
-                            "Package version `{}`(current) is already submitted in PR #{}: {}",
-                            submission.version,
-                            pr.number,
-                            pr.url.underlined()
-                        );
-                    }
-                    std::cmp::Ordering::Less => {
-                        warn!(
-                            "Package version `{}`(older) is already submitted in PR #{}: {}",
-                            submission.version,
-                            pr.number,
-                            pr.url.underlined()
-                        );
-                    }
+            match submission.version.cmp(&manifest.package.version) {
+                std::cmp::Ordering::Greater => {
+                    bail!(
+                        "Package version `{}`(newer) is already submitted in PR #{}: {}",
+                        submission.version,
+                        pr.number,
+                        pr.url.underlined()
+                    );
+                }
+                std::cmp::Ordering::Equal => {
+                    bail!(
+                        "Package version `{}`(current) is already submitted in PR #{}: {}",
+                        submission.version,
+                        pr.number,
+                        pr.url.underlined()
+                    );
+                }
+                std::cmp::Ordering::Less => {
+                    warn!(
+                        "Package version `{}`(older) is already submitted in PR #{}: {}",
+                        submission.version,
+                        pr.number,
+                        pr.url.underlined()
+                    );
                 }
             }
         }
@@ -250,8 +249,7 @@ pub async fn publish(
         {
             if !Confirm::new()
                 .with_prompt(format!(
-                    "Branch `{}` already exists in your fork. Do you want to overwrite it?",
-                    branch_name
+                    "Branch `{branch_name}` already exists in your fork. Do you want to overwrite it?"
                 ))
                 .default(false)
                 .interact()?
@@ -320,7 +318,9 @@ pub async fn publish(
                     )
                     .await?;
                 } else {
-                    info!("Git version does not support sparse-checkout, automatically switch to api upload method.");
+                    info!(
+                        "Git version does not support sparse-checkout, automatically switch to api upload method."
+                    );
                     upload_files_api(
                         client,
                         &me.login,
@@ -527,7 +527,7 @@ async fn upload_files_sparse_checkout(
     let temp_dir = TempDir::new()?;
     let temp_path = temp_dir.path();
 
-    let fork_url = format!("https://github.com/{}/{}.git", user_login, repo_name);
+    let fork_url = format!("https://github.com/{user_login}/{repo_name}.git");
     let target_path = submission.repo_path();
 
     let output = Command::new("git")

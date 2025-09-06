@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::Parser;
 use dialoguer::{Confirm, Input, MultiSelect};
 use log::info;
@@ -51,7 +51,7 @@ pub fn init(package_dir: &Path, args: &InitArgs) -> Result<()> {
         if !name_re.is_match(name) {
             bail!("Invalid package name")
         }
-        println!("Package name: {}", name);
+        println!("Package name: {name}");
         name.to_string()
     } else {
         let name = Input::new()
@@ -223,7 +223,7 @@ pub fn init(package_dir: &Path, args: &InitArgs) -> Result<()> {
 
         let entrypoint: String = Input::new()
             .with_prompt("Enter the template entrypoint")
-            .default(format!("{}/main.typ", path))
+            .default(format!("{path}/main.typ"))
             .validate_with(entrypoint_validator)
             .interact_text()?;
 

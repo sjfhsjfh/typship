@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Parser;
 use log::{info, warn};
 
@@ -37,7 +37,7 @@ pub fn clean_one(name: &str) -> Result<()> {
     let package_dir = typst_local_dir().join("preview").join(name);
     if !package_dir.is_dir() {
         if !package_dir.exists() {
-            warn!("Package `{}` not found in local data dir, skipping", name);
+            warn!("Package `{name}` not found in local data dir, skipping");
             return Ok(());
         } else {
             bail!("Package `{}` is not a directory", name);

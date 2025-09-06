@@ -6,8 +6,7 @@ use clap::{ArgAction, Parser};
 use crate::regs::universe::{self, UploadMethod};
 use crate::utils::read_manifest;
 
-const LONG_ABOUT: &str =
-    "Publish the package to a certain registry. Currently, only the official Universe (GitHub) registry is supported.";
+const LONG_ABOUT: &str = "Publish the package to a certain registry. Currently, only the official Universe (GitHub) registry is supported.";
 
 #[derive(Parser)]
 #[command(long_about = LONG_ABOUT)]

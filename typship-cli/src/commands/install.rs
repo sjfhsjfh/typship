@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Parser;
 use dialoguer::Confirm;
 use log::{debug, warn};
@@ -82,7 +82,7 @@ pub fn install(src_dir: &Path, args: &InstallArgs) -> Result<()> {
     for entry in (walker_install(src_dir)?).into_iter().flatten() {
         let path = entry.path();
         let dest = version_dir.join(path.strip_prefix(src_dir).unwrap());
-        debug!("Copying {:?} to {:?}", path, dest);
+        debug!("Copying {path:?} to {dest:?}");
         if path.is_file() {
             if let Some(parent) = dest.parent() {
                 fs::create_dir_all(parent)?;

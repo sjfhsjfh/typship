@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Parser;
 use log::{debug, info, warn};
 
@@ -48,7 +48,7 @@ pub async fn dev(package_dir: &Path) -> Result<()> {
             .map(|v| v.name)
             .any(|v| v == version.to_string())
         {
-            warn!("Version `{}` is already available in the Universe", version);
+            warn!("Version `{version}` is already available in the Universe");
         }
     } else {
         warn!(

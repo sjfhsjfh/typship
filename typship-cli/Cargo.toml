@@ -1,0 +1,59 @@
+[package]
+name = "typship-cli"
+description = "A cli for typst packages."
+version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+edition.workspace = true
+license-file.workspace = true
+
+[[bin]]
+name = "typship"
+path = "src/main.rs"
+
+[features]
+default = []
+
+[dependencies]
+anyhow = "1.0.95"
+clap = { version = "4.5.23", features = ["derive"] }
+crossterm = { version = "0.28.1", default-features = false }
+dialoguer = "0.11.0"
+dirs.workspace = true
+ecow.workspace = true
+env_logger = "0.11.6"
+flate2.workspace = true
+futures-util = "0.3.31"
+glob = "0.3.2"
+ignore = "0.4.23"
+log = "0.4.22"
+octocrab = { version = "0.42.1", features = [
+    "stream",
+    "default-client",
+    "rustls",
+    "rustls-ring",
+], default-features = false }
+regex = { version = "1.11.1", features = [
+    "unicode-perl",
+], default-features = false }
+reqwest.workspace = true
+secrecy = { version = "0.10.3", features = ["serde"] }
+serde = { version = "1.0.216", features = ["derive"] }
+sha2 = "0.10.8"
+tar.workspace = true
+tempfile = "3.20.0"
+tokio = { version = "1.42.0", features = [
+    "rt",
+    "rt-multi-thread",
+    "macros",
+    "fs",
+    "io-std",
+    "io-util",
+    "net",
+], default-features = false }
+toml.workspace = true
+typship-pack.workspace = true
+typst-syntax.workspace = true
+url = "2.5.4"
+whoami = "1.5.2"

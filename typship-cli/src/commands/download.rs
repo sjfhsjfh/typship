@@ -1,11 +1,11 @@
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Parser;
 use log::info;
 
-use crate::commands::install::{install, InstallArgs};
+use crate::commands::install::{InstallArgs, install};
 use crate::utils::temp_subdir;
 
 const LONG_ABOUT: &str = "Download a package from git repository to a certain (defaults to `@local`) namespace. You may specify a specific tag, commit, or branch to checkout to.";
@@ -61,7 +61,7 @@ fn temp_jobs(temp_dir: PathBuf, repo: &str, checkout: Option<&str>, namespace: &
     }
 
     if let Some(checkout) = checkout {
-        info!("Checking out to {}...", checkout);
+        info!("Checking out to {checkout}...");
         let status = std::process::Command::new("git")
             .arg("checkout")
             .arg(checkout)

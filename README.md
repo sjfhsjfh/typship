@@ -62,6 +62,25 @@ Download a package to `@my-packages`:
 typship download <package-repo> -n my-packages
 ```
 
+Copy a package:
+
+```sh
+# copy from github
+typship cp https://github.com/hongjr03/typst-zebraw @preview
+# copy from http url
+typship cp https://github.com/touying-typ/touying/archive/refs/tags/0.6.1.tar.gz @local
+# copy a package into other namespace
+typship cp @preview/zebraw:0.4.4 @local
+# rename a package
+typship cp @preview/zebraw:0.4.4 @local/zebraw-derived
+# copy from universe (download if not exist)
+typship cp @preview/zebraw:0.4.4 @local
+# copy from universe (always fetch from remote)
+typship cp universe:@preview/zebraw:0.4.4 @local
+# forbid network access
+typship cp --offline @preview/zebraw:0.4.4 @local
+```
+
 ## TODO
 
 - [ ] i18n
